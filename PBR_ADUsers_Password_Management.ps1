@@ -392,8 +392,8 @@ function Show-KrbtgtResetMenu {
 		$choice = Read-Host "Enter your choice"
         
 		switch ($choice) {
-			1 { ResetkrbtgtPasswordNow } # Done, may be expanded/changed later.
-			2 { ResetkrbtgtPasswordScheduleSecond } # Done, but needs testing.
+			1 { ResetkrbtgtPasswordNow }
+			2 { ResetkrbtgtPasswordScheduleSecond }
 			9 { return }
 			0 { Show-MainMenu }
 			default { 
@@ -880,7 +880,7 @@ function ImportByFile {
 	$usersWithoutDuplicates = @()
 	foreach ($user in $users) {
 		if ($seenUsers.ContainsKey($user.SamAccountName)) {
-			Write-Host "  ✗ $($user.SamAccountName)" -ForegroundColor DarkYellow
+			Write-Host "   $($user.SamAccountName)" -ForegroundColor DarkYellow
 		}
 		else {
 			$seenUsers[$user.SamAccountName] = $true
@@ -897,11 +897,11 @@ function ImportByFile {
 	foreach ($user in $usersWithoutDuplicates) {
 		try {
 			$adUser = Get-ADUser -Identity $user.SamAccountName -ErrorAction Stop
-			Write-Host "  ✓ $($user.SamAccountName)" -ForegroundColor Green
+			Write-Host "   $($user.SamAccountName)" -ForegroundColor Green
 			$validUsers += [PSCustomObject]@{SamAccountName = $user.SamAccountName }
 		}
 		catch {
-			Write-Host "  ✗ $($user.SamAccountName)" -ForegroundColor Red
+			Write-Host "   $($user.SamAccountName)" -ForegroundColor Red
 			}
 		}
         
@@ -962,7 +962,7 @@ function ImportByUsername {
 	foreach ($sam in $uniqueEntries) {
 		# Check duplicate within input (already handled, but keep message for clarity)
 		if ($processed.ContainsKey($sam)) {
-			Write-Host "  ✗ $sam" -ForegroundColor DarkYellow -NoNewline
+			Write-Host "   $sam" -ForegroundColor DarkYellow -NoNewline
 			Write-Host " (duplicate in input - skipped)" -ForegroundColor Gray
 			$dupInInput += $sam
 			continue
@@ -971,12 +971,12 @@ function ImportByUsername {
 
 		try {
 			$user = Get-ADUser -Identity $sam -Properties SamAccountName, Enabled -ErrorAction Stop
-			Write-Host "  ✓ $($user.SamAccountName)" -ForegroundColor Green -NoNewline
+			Write-Host "   $($user.SamAccountName)" -ForegroundColor Green -NoNewline
 			Write-Host " (found)" -ForegroundColor Gray
 			$validUsers += $user
 		}
 		catch {
-			Write-Host "  ✗ $sam" -ForegroundColor Red -NoNewline
+			Write-Host "   $sam" -ForegroundColor Red -NoNewline
 			Write-Host " (not found)" -ForegroundColor Gray
 			$notFound += $sam
 		}
@@ -1035,7 +1035,7 @@ function ResetDatasetUserPasswords_identical {
 				continue
 			}
 			"2" {
-				Read-Host "		- Please ensure the password has been documented, as it will not be shown again." -ForegroundColor Yellow
+				Read-Host "- Please ensure the password has been documented, as it will not be shown again."
 				Clear-Host
 				Write-Host "=== Reset Users to Same String ===" -ForegroundColor Cyan
 				Write-Host "Proceeding with password reset..."
@@ -1043,10 +1043,10 @@ function ResetDatasetUserPasswords_identical {
 					try {
 						Set-ADAccountPassword -Identity $($user.SamAccountName) -NewPassword $NewPassword -Reset
 						Set-ADUser -Identity $($user.SamAccountName) -PasswordNeverExpires $false -ChangePasswordAtLogon $true
-						Write-Host "	- ✓ Password for user $($user.SamAccountName) has been reset." -ForegroundColor Green
+						Write-Host "	-  Password for user $($user.SamAccountName) has been reset." -ForegroundColor Green
 					}
 					catch {
-						Write-Host "	- ✗ Failed to reset password for user $($user.SamAccountName): $_" -ForegroundColor Red
+						Write-Host "	-  Failed to reset password for user $($user.SamAccountName): $_" -ForegroundColor Red
 					}
 				}
 				Write-Host "`nAll Users within the dataset have had the same password set."
@@ -1106,14 +1106,14 @@ function ResetDatasetUserPasswords_unique {
 					try {
 						Set-ADAccountPassword -Identity $user.SamAccountName -NewPassword $NewPassword -Reset
 						Set-ADUser -Identity $user.SamAccountName -PasswordNeverExpires $false -ChangePasswordAtLogon $true
-						Write-Host "  ✓ Password for user $($user.SamAccountName) has been set to a unique password." -ForegroundColor Green
+						Write-Host "   Password for user $($user.SamAccountName) has been set to a unique password." -ForegroundColor Green
 						[PSCustomObject]@{
 							SamAccountName = $user.SamAccountName
 							Password = $NewPasswordPlain
 						} | Export-Csv -Path $OutputFile -Append -Encoding UTF8 -NoTypeInformation
 					}
 					catch {
-						Write-Host "  ✗ Failed to reset password for user $($user.SamAccountName): $_" -ForegroundColor Red
+						Write-Host "   Failed to reset password for user $($user.SamAccountName): $_" -ForegroundColor Red
 					}
 				}
 				Write-Host "`n$OutputFile has been created with unique passwords for each user." -ForegroundColor Green
@@ -1166,11 +1166,11 @@ function Set-PasswordNeverExpiresFlag {
 				foreach ($user in $global:CurrentDataset) {
 					try {
 						Set-ADUser -Identity $user.SamAccountName -PasswordNeverExpires $flagValue -ErrorAction Stop
-						Write-Host "  ✓ Flag set to $flagValue for $($user.SamAccountName)" -ForegroundColor Green
+						Write-Host "   Flag set to $flagValue for $($user.SamAccountName)" -ForegroundColor Green
 						$successCount++
 					} 
 					catch {
-						Write-Host "  ✗ Failed to set flag for $($user.SamAccountName): $($_.Exception.Message)" -ForegroundColor Red
+						Write-Host "   Failed to set flag for $($user.SamAccountName): $($_.Exception.Message)" -ForegroundColor Red
 						$failureCount++
 						$failedUsers += $user.SamAccountName
 					}
@@ -1204,11 +1204,11 @@ function Set-PasswordNeverExpiresFlag {
 				foreach ($user in $global:CurrentDataset) {
 					try {
 						Set-ADUser -Identity $user.SamAccountName -PasswordNeverExpires $flagValue -ErrorAction Stop
-						Write-Host "  ✓ Flag set to $flagValue for $($user.SamAccountName)" -ForegroundColor Green
+						Write-Host "   Flag set to $flagValue for $($user.SamAccountName)" -ForegroundColor Green
 						$successCount++
 					} 
 					catch {
-						Write-Host "  ✗ Failed to set flag for $($user.SamAccountName): $($_.Exception.Message)" -ForegroundColor Red
+						Write-Host "   Failed to set flag for $($user.SamAccountName): $($_.Exception.Message)" -ForegroundColor Red
 						$failureCount++
 						$failedUsers += $user.SamAccountName
 					}
@@ -1285,11 +1285,11 @@ function Set-ChangePasswordAtLogonFlag { #################################breaks
 				foreach ($user in $global:CurrentDataset) {
 					try {
 						Set-ADUser -Identity $user.SamAccountName -PasswordNeverExpires $false -ChangePasswordAtLogon $true -ErrorAction Stop
-						Write-Host "  ✓ Flag set to True for $($user.SamAccountName)" -ForegroundColor Green
+						Write-Host "   Flag set to True for $($user.SamAccountName)" -ForegroundColor Green
 						$successCount++
 					} 
 					catch {
-						Write-Host "  ✗ Failed to set flag for $($user.SamAccountName): $($_.Exception.Message)" -ForegroundColor Red
+						Write-Host "   Failed to set flag for $($user.SamAccountName): $($_.Exception.Message)" -ForegroundColor Red
 						$failureCount++
 						$failedUsers += $user.SamAccountName
 					}
@@ -1321,11 +1321,11 @@ function Set-ChangePasswordAtLogonFlag { #################################breaks
 				foreach ($user in $global:CurrentDataset) {
 					try {
 						Set-ADUser -Identity $user.SamAccountName -ChangePasswordAtLogon $false -ErrorAction Stop
-						Write-Host "  ✓ Flag set to False for $($user.SamAccountName)" -ForegroundColor Green
+						Write-Host "   Flag set to False for $($user.SamAccountName)" -ForegroundColor Green
 						$successCount++
 					} 
 					catch {
-						Write-Host "  ✗ Failed to set flag for $($user.SamAccountName): $($_.Exception.Message)" -ForegroundColor Red
+						Write-Host "   Failed to set flag for $($user.SamAccountName): $($_.Exception.Message)" -ForegroundColor Red
 						$failureCount++
 						$failedUsers += $user.SamAccountName
 					}
@@ -1681,7 +1681,7 @@ catch {
 		Register-ScheduledTask -TaskName $taskName -Action $action -Trigger $trigger -Settings $settings -Description $taskDescription -Force | Out-Null
 		
 		Write-Host "`n" -ForegroundColor Green
-		Write-Host "✓ Scheduled task created successfully!" -ForegroundColor Green
+		Write-Host " Scheduled task created successfully!" -ForegroundColor Green
 		Write-Host "Task Name: $taskName" -ForegroundColor Green
 		Write-Host "Scheduled Time: $($scheduledTime.ToString('dddd, MMMM dd, yyyy HH:mm:ss'))" -ForegroundColor Green
 		Write-Host "Delay: $ResetDelay hours from now" -ForegroundColor Green
@@ -1746,7 +1746,7 @@ function ApplySelectionToDataset {
 
 		# Always exclude protected accounts
 		if ($excludedLookup.ContainsKey($samName)) {
-			Write-Host "  ✗ $samName" -ForegroundColor DarkYellow -NoNewline
+			Write-Host "   $samName" -ForegroundColor DarkYellow -NoNewline
 			Write-Host " (excluded account)" -ForegroundColor Gray
 			$excludedUsersCount++
 			continue
@@ -1754,7 +1754,7 @@ function ApplySelectionToDataset {
 		
 		# Check if this is a duplicate within the import itself
 		if ($processedSamNames.ContainsKey($samName)) {
-			Write-Host "  ✗ $samName" -ForegroundColor DarkYellow -NoNewline
+			Write-Host "   $samName" -ForegroundColor DarkYellow -NoNewline
 			Write-Host " (duplicate in import - skipped)" -ForegroundColor Gray
 			$duplicatesInImportCount++
 			continue
@@ -1765,12 +1765,12 @@ function ApplySelectionToDataset {
 		
 		# Check if user already exists in current dataset
 		if ($existingSamNames.ContainsKey($samName)) {
-			Write-Host "  ✗ $samName" -ForegroundColor Red -NoNewline
+			Write-Host "   $samName" -ForegroundColor Red -NoNewline
 			Write-Host " (already in dataset)" -ForegroundColor Gray
 			$existingUsersCount++
 		}
 		else {
-			Write-Host "  ✓ $samName" -ForegroundColor Green -NoNewline
+			Write-Host "   $samName" -ForegroundColor Green -NoNewline
 			Write-Host " (new)" -ForegroundColor Gray
 			$usersToAdd += $user
 			$newUsersCount++
