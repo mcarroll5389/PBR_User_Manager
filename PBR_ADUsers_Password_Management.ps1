@@ -112,7 +112,6 @@ if (-not (Get-Module -Name ActiveDirectory -ErrorAction SilentlyContinue)) {
 }
 
 # Import .NET assembly
-Add-Type -AssemblyName System.Web
 Add-Type -AssemblyName System.Windows.Forms
 
 ############# Initial Checks #############
@@ -323,8 +322,8 @@ function Show-ManageUsersMenu {
 		Write-Host "=== Main -> Manage Users === Current Dataset Name: $($global:CurrentDatasetName) | Users: $($global:CurrentDataset.Count) ==="
 		Write-Host "1. Set User Passwords to Same String"
 		Write-Host "2. Set User Passwords to Random Strings"
-		Write-Host "3. Reset 'PasswordNeverExpires' Flag for Users in Dataset"
-		Write-Host "4. Reset 'ChangePasswordAtLogon' Flag for Users in Dataset"
+		Write-Host "3. Set 'PasswordNeverExpires' Flag for Users in Dataset"
+		Write-Host "4. Set 'ChangePasswordAtLogon' Flag for Users in Dataset"
 		Write-Host "0. Back to Main Menu"
         
 		$choice = Read-Host "Enter your choice"
@@ -393,7 +392,7 @@ function Show-KrbtgtResetMenu {
         
 		switch ($choice) {
 			1 { ResetkrbtgtPasswordNow }
-			2 { ResetkrbtgtPasswordScheduleSecond }
+			2 { ResetkrbtgtPasswordScheduleSecond } 
 			9 { return }
 			0 { Show-MainMenu }
 			default { 
@@ -875,33 +874,33 @@ function ImportByFile {
 			$users = $dataLines | Where-Object { $_ -and $_.Trim() } | ForEach-Object { [PSCustomObject]@{SamAccountName = $_.Trim() } }
 		}
         
-# Detect duplicates within the import file
-	$seenUsers = @{}
-	$usersWithoutDuplicates = @()
-	foreach ($user in $users) {
-		if ($seenUsers.ContainsKey($user.SamAccountName)) {
-			Write-Host "   $($user.SamAccountName)" -ForegroundColor DarkYellow
+		# Detect duplicates within the import file
+		$seenUsers = @{}
+		$usersWithoutDuplicates = @()
+		foreach ($user in $users) {
+			if ($seenUsers.ContainsKey($user.SamAccountName)) {
+				Write-Host "   $($user.SamAccountName)" -ForegroundColor DarkYellow
+			}
+			else {
+				$seenUsers[$user.SamAccountName] = $true
+				$usersWithoutDuplicates += $user
+			}
 		}
-		else {
-			$seenUsers[$user.SamAccountName] = $true
-			$usersWithoutDuplicates += $user
+		
+		if ($usersWithoutDuplicates.Count -lt $users.Count) {
+			Write-Host "Removed $($users.Count - $usersWithoutDuplicates.Count) duplicate(s) from import file." -ForegroundColor Yellow
 		}
-	}
-	
-	if ($usersWithoutDuplicates.Count -lt $users.Count) {
-		Write-Host "Removed $($users.Count - $usersWithoutDuplicates.Count) duplicate(s) from import file." -ForegroundColor Yellow
-	}
-	
-	# Validate users exist in AD
-	$validUsers = @()
-	foreach ($user in $usersWithoutDuplicates) {
-		try {
-			$adUser = Get-ADUser -Identity $user.SamAccountName -ErrorAction Stop
-			Write-Host "   $($user.SamAccountName)" -ForegroundColor Green
-			$validUsers += [PSCustomObject]@{SamAccountName = $user.SamAccountName }
-		}
-		catch {
-			Write-Host "   $($user.SamAccountName)" -ForegroundColor Red
+		
+		# Validate users exist in AD
+		$validUsers = @()
+		foreach ($user in $usersWithoutDuplicates) {
+			try {
+				$adUser = Get-ADUser -Identity $user.SamAccountName -ErrorAction Stop
+				Write-Host "   $($user.SamAccountName)" -ForegroundColor Green
+				$validUsers += [PSCustomObject]@{SamAccountName = $user.SamAccountName }
+			}
+			catch {
+				Write-Host "   $($user.SamAccountName)" -ForegroundColor Red
 			}
 		}
         
@@ -1001,45 +1000,24 @@ function ImportByUsername {
 function ResetDatasetUserPasswords_identical {
 	Clear-Host
 	Test-DatasetPopulated
-	$currentUser = $env:USERNAME
-	$dataset = $global:CurrentDataset | Where-Object { $_.SamAccountName -ne $currentUser }
-	if ($dataset.Count -eq 0) {
-		Write-Host "The dataset is empty after excluding the current user ('`$currentUser'). Unable to continue."
-		Read-Host "Press Enter to Continue"
-		return
-	}
-	do {
-		Write-Host "=== Reset Users to Same String ===" -ForegroundColor Cyan
+	Write-Host "=== Reset Users to Same String ===" -ForegroundColor Cyan
 		$NewPasswordPlain = GeneratePassword
 		Write-Host "Please note that the following Changes will be made to each user: `n	- ChangePasswordAtLogon flag will be set to True`n	- PasswordNeverExpires will be set to False`n	- All User passwords in the current dataset will be reset." -ForegroundColor Yellow
 		Write-Host "`nThe new password to be set for all users in the dataset is: $NewPasswordPlain" -ForegroundColor Green
 		$NewPassword = ConvertTo-SecureString -String $NewPasswordPlain -AsPlainText -Force
 		Write-Host "`nPlease select one of the following options to continue:"
-
-		$SetSameStringbyOUConfirmRead = Read-Host "	1. View Users in dataset `n	2. Continue with Reset `n	3. Regenerate Password `n	0. Cancel"
-		
-		
+		$SetSameStringbyOUConfirmRead = Read-Host "`n 	1. Continue with Reset `n	2. Regenerate Password `n	0. Cancel`nChoice"
+	do {
 		switch ($SetSameStringbyOUConfirmRead) {
 			"0" {
-				return
+				Show-ManageUsersMenu
 			}
 			"1" {
-				Clear-Host
-				Write-Host "=== Reset Users to Same String ===" -ForegroundColor Cyan
-				Write-Host "The following users will have their passwords reset:"
-				foreach ($user in $dataset) {
-					Write-Host "	- $($user.SamAccountName)"
-				}
-				Wait-ForExplicitContinue
-				Clear-Host
-				continue
-			}
-			"2" {
 				Read-Host "- Please ensure the password has been documented, as it will not be shown again."
 				Clear-Host
 				Write-Host "=== Reset Users to Same String ===" -ForegroundColor Cyan
 				Write-Host "Proceeding with password reset..."
-				foreach ($user in $dataset) {
+				foreach ($user in $global:CurrentDataset) {
 					try {
 						Set-ADAccountPassword -Identity $($user.SamAccountName) -NewPassword $NewPassword -Reset
 						Set-ADUser -Identity $($user.SamAccountName) -PasswordNeverExpires $false -ChangePasswordAtLogon $true
@@ -1054,9 +1032,9 @@ function ResetDatasetUserPasswords_identical {
 				Clear-Host
 				return
 			}
-			"3" {
+			"2" {
 				# Regenerate password, continue loop
-				continue
+				ResetDatasetUserPasswords_identical
 			}
 			default {
 				Write-Host "Invalid option. Please try again."
@@ -1070,37 +1048,20 @@ function ResetDatasetUserPasswords_identical {
 function ResetDatasetUserPasswords_unique {
 	Clear-Host
 	Test-DatasetPopulated
-	$currentUser = $env:USERNAME
-	$dataset = $global:CurrentDataset | Where-Object { $_.SamAccountName -ne $currentUser }
-	if ($dataset.Count -eq 0) {
-		Write-Host "The dataset is empty after excluding the current user ('`$currentUser'). Unable to continue."
-		Read-Host "Press Enter to Continue"
-		return
-	}
-	Write-Host "=== Reset User to Unique Strings ==="
+	Write-Host "=== Reset User to Unique Strings ===" -ForegroundColor Cyan
 	Write-Host "Please note that the following Changes will be made to each user: `n	- ChangePasswordAtLogon flag will be set to True`n	- PasswordNeverExpires will be set to False`n	- All User passwords in the current dataset will be reset." -ForegroundColor Yellow
 	$Time = Get-Date -Format "yyyyMMdd-HHmmss"
 	$OutputFile = "$PWD\NewPasswordsPlain-$Time.csv"
+	Write-Host "`nPlease select one of the following options to continue:"
+	$choice = Read-Host "	1. Continue with Reset `n	0. Cancel`nChoice"
 	do {
-		Write-Host "`nPlease select one of the following options to continue:"
-		$choice = Read-Host "	1. View Users in dataset `n	2. Continue with Reset `n	0. Cancel"
 		switch ($choice) {
 			"0" {
 				return
 			}
+
 			"1" {
-				Clear-Host
-				Write-Host "=== Reset User to Unique Strings ==="
-				Write-Host "The following users will have their passwords reset:"
-				foreach ($user in $dataset) {
-					Write-Host "	- $($user.SamAccountName)"
-				}
-				Wait-ForExplicitContinue
-				Clear-Host
-				continue
-			}
-			"2" {
-				foreach ($user in $dataset) {
+				foreach ($user in $global:CurrentDataset) {
 					$NewPasswordPlain = GeneratePassword
 					$NewPassword = ConvertTo-SecureString -String $NewPasswordPlain -AsPlainText -Force
 					try {
@@ -1145,11 +1106,10 @@ function Set-PasswordNeverExpiresFlag {
 		Write-Host ""
 		Write-Host "1. Set to True"
 		Write-Host "2. Set to False"
-		Write-Host "3. View Users in Dataset"
 		Write-Host "0. Cancel"
 		Write-Host ""
 		
-		$choice = Read-Host "Select an option (0-3)"
+		$choice = Read-Host "Select an option (0-2)"
 		
 		switch ($choice) {
 			"1" {
@@ -1228,15 +1188,6 @@ function Set-PasswordNeverExpiresFlag {
 				Wait-ForExplicitContinue
 			}
 			
-			"3" {
-				Clear-Host
-				Write-Host "=== Users in Current Dataset ===" -ForegroundColor Cyan
-				Write-Host ""
-				$global:CurrentDataset | ForEach-Object { Write-Host "  - $($_.SamAccountName)" }
-				Write-Host ""
-				Wait-ForExplicitContinue
-			}
-			
 			"0" {
 				return
 			}
@@ -1249,7 +1200,7 @@ function Set-PasswordNeverExpiresFlag {
 	} while ($true)
 }
 
-function Set-ChangePasswordAtLogonFlag { #################################breaks the script
+function Set-ChangePasswordAtLogonFlag {
 	do {
 		Clear-Host
 		Write-Host "=== Set ChangePasswordAtLogon Flag ===" -ForegroundColor Cyan
@@ -1265,11 +1216,10 @@ function Set-ChangePasswordAtLogonFlag { #################################breaks
 		Write-Host ""
 		Write-Host "1. Set to True"
 		Write-Host "2. Set to False"
-		Write-Host "3. View Users in Dataset"
 		Write-Host "0. Cancel"
 		Write-Host ""
 		
-		$choice = Read-Host "Select an option (0-3)"
+		$choice = Read-Host "Select an option (0-2)"
 		
 		switch ($choice) {
 			"1" {
@@ -1345,16 +1295,7 @@ function Set-ChangePasswordAtLogonFlag { #################################breaks
 				
 				Wait-ForExplicitContinue
 			}
-			
-			"3" {
-				Clear-Host
-				Write-Host "=== Users in Current Dataset ===" -ForegroundColor Cyan
-				Write-Host ""
-				$global:CurrentDataset | ForEach-Object { Write-Host "  - $($_.SamAccountName)" }
-				Write-Host ""
-				Wait-ForExplicitContinue
-			}
-			
+						
 			"0" {
 				return
 			}
@@ -1662,10 +1603,29 @@ try {
 	}
 	
 	Read-Host "Press Enter to close this window"
+	
+	# Cleanup: Remove this script file after execution
+	if (Test-Path "`$PSCommandPath") {
+		try {
+			Remove-Item -Path "`$PSCommandPath" -Force -ErrorAction SilentlyContinue
+		}
+		catch {
+			# Script removal failed, but don't block the user
+		}
+	}
 }
 catch {
 	Write-Host "An error occurred: `$_" -ForegroundColor Red
 	Read-Host "Press Enter to close this window"
+	
+	# Cleanup attempt even on error
+	if (Test-Path "`$PSCommandPath") {
+		try {
+			Remove-Item -Path "`$PSCommandPath" -Force -ErrorAction SilentlyContinue
+		}
+		catch {
+		}
+	}
 }
 "@
 		
@@ -1685,7 +1645,9 @@ catch {
 		Write-Host "Task Name: $taskName" -ForegroundColor Green
 		Write-Host "Scheduled Time: $($scheduledTime.ToString('dddd, MMMM dd, yyyy HH:mm:ss'))" -ForegroundColor Green
 		Write-Host "Delay: $ResetDelay hours from now" -ForegroundColor Green
+		Write-Host "Script Path: $scriptPath" -ForegroundColor Gray
 		Write-Host "`nThe task will display a prompt to confirm the reset when it runs." -ForegroundColor Gray
+		Write-Host "`nNote: The script file will be automatically cleaned up after execution." -ForegroundColor Yellow
 	}
 	catch {
 		Write-Host "Failed to create scheduled task: $_" -ForegroundColor Red
