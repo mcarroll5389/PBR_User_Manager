@@ -56,12 +56,8 @@
     - [X] ResetDatasetUserPasswords_identical Menu is broken and doesn't display correctly. Review.
     - [X] ResetDatasetUserPasswords_unique also probably has a broken menu. Review.
     - [X] Set-ChangePasswordAtLogonFlag - Error when account has "PasswordNeverExpires" set to False.
-    - [ ] === Users whose Passwords were changed today === returns empty data.
-    - [ ] Fix krbtgt scheduled reset functions.
-    - [ ] 
-    - [ ] 
-    - [ ] 
-
+    - [X] === Users whose Passwords were changed today === returns empty data.
+    - [X] Fix krbtgt scheduled reset functions.
 
 #>
 
@@ -231,7 +227,7 @@ function Show-ImportUserDatasetMenu {
 function RemoveUsersFromDatasetMenu {
 	do {
 		Clear-Host
-        
+        Refresh-CurrentDatasetStatus
 		# Check if dataset is empty
 		if ($global:CurrentDataset.Count -eq 0) {
 			Write-Host "=== Remove Users from Dataset ===" -ForegroundColor Cyan
@@ -411,6 +407,7 @@ function Show-KrbtgtResetMenu {
 # will be called elsewhere.
 function Show-LoadedDatasetSummary {
 	Clear-Host
+	Refresh-CurrentDatasetStatus
 	Write-Host "=== Loaded Dataset Summary ===" -ForegroundColor Cyan
 	if ($global:CurrentDataset.Count -eq 0) {
 		Write-Host "No users currently loaded in the dataset."
@@ -421,7 +418,7 @@ function Show-LoadedDatasetSummary {
 		Write-Host "Total Users in Dataset: $($global:CurrentDataset.Count)"
 		Write-Host "Active Users: $activeCount" -ForegroundColor Green
 		Write-Host "Disabled Users: $disabledCount" -ForegroundColor Red
-		Write-Host "Note: User status is determined at import, not dynamically updated." -ForegroundColor Yellow
+		Write-Host "Note: User status is now dynamically updated when viewing the summary." -ForegroundColor Yellow
 
 	}
 	Wait-ForExplicitContinue
@@ -429,6 +426,7 @@ function Show-LoadedDatasetSummary {
 
 function Show-LoadedDatasetEntries {
 	Clear-Host
+	Refresh-CurrentDatasetStatus
 	Write-Host "=== Loaded Dataset Users ===" -ForegroundColor Cyan
 	if ($global:CurrentDataset.Count -eq 0) {
 		Write-Host "No users currently loaded in the dataset."
@@ -437,7 +435,7 @@ function Show-LoadedDatasetEntries {
 		Write-Host "SAM Names in the current dataset:"
 		Show-UserStatus
 	}
-	Write-Host "Note: User status is determined at import, not dynamically updated." -ForegroundColor Yellow
+	Write-Host "Note: User status is now dynamically updated when viewing the summary." -ForegroundColor Yellow
 	Wait-ForContinue
 }
 
@@ -1003,6 +1001,7 @@ function ImportByUsername {
 
 function ResetDatasetUserPasswords_identical {
 	Clear-Host
+	Refresh-CurrentDatasetStatus
 	Test-DatasetPopulated
 	Write-Host "=== Reset Users to Same String ===" -ForegroundColor Cyan
 		$NewPasswordPlain = GeneratePassword
@@ -1051,6 +1050,7 @@ function ResetDatasetUserPasswords_identical {
 
 function ResetDatasetUserPasswords_unique {
 	Clear-Host
+	Refresh-CurrentDatasetStatus
 	Test-DatasetPopulated
 	Write-Host "=== Reset User to Unique Strings ===" -ForegroundColor Cyan
 	Write-Host "Please note that the following Changes will be made to each user: `n	- ChangePasswordAtLogon flag will be set to True`n	- PasswordNeverExpires will be set to False`n	- All User passwords in the current dataset will be reset." -ForegroundColor Yellow
@@ -1099,6 +1099,7 @@ function ResetDatasetUserPasswords_unique {
 function Set-PasswordNeverExpiresFlag {
 	do {
 		Clear-Host
+		Refresh-CurrentDatasetStatus
 		Write-Host "=== Set PasswordNeverExpires Flag ===" -ForegroundColor Cyan
 		Test-DatasetPopulated		
 		if ($global:CurrentDataset.Count -eq 0) {
@@ -1207,6 +1208,7 @@ function Set-PasswordNeverExpiresFlag {
 function Set-ChangePasswordAtLogonFlag {
 	do {
 		Clear-Host
+		Refresh-CurrentDatasetStatus
 		Write-Host "=== Set ChangePasswordAtLogon Flag ===" -ForegroundColor Cyan
 		Test-DatasetPopulated
 		
@@ -1809,12 +1811,33 @@ function Test-DatasetPopulated {
 	}
 }
 
-function NotYetImplemented {
-	Clear-Host
-	Write-Host "=== Feature not yet released ===" -ForegroundColor Cyan
-	Write-Host "This feature is not yet released."
-	Wait-WithDelay
-	return
+function Refresh-CurrentDatasetStatus {
+    if ($global:CurrentDataset.Count -eq 0) { return }
+
+    # Query AD for current Enabled status of all users in dataset
+    $updated = @()
+    $notFound = @()
+
+    foreach ($user in $global:CurrentDataset) {
+        try {
+            $adUser = Get-ADUser -Identity $user.SamAccountName -Properties Enabled -ErrorAction Stop
+            # Preserve original object shape but update Enabled
+            $updated += $adUser
+        }
+        catch {
+            # Keep original entry, but track not found
+            $notFound += $user.SamAccountName
+            $updated += $user
+        }
+    }
+
+    $global:CurrentDataset = $updated
+
+    if ($notFound.Count -gt 0) {
+        Write-Host "Warning: Some users could not be refreshed and were kept as-is:" -ForegroundColor Yellow
+        $notFound | ForEach-Object { Write-Host "  - $_" -ForegroundColor Yellow }
+        Start-Sleep -Seconds 1
+    }
 }
 
 function Wait-ForContinue {
