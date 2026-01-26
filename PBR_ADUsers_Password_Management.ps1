@@ -148,6 +148,7 @@ function Show-MainMenu {
 		Write-Host "2. Manage Users"
 		Write-Host "3. Global Reports"
 		Write-Host "4. krbtgt Password Resets..."
+		Write-Host "9. About / Help"
 		Write-Host "0. Exit"
         
 		$choice = Read-Host "Enter your choice"
@@ -157,7 +158,8 @@ function Show-MainMenu {
 			2 { Show-ManageUsersMenu }
 			3 { Show-ReportsMenu }
 			4 { Show-KrbtgtResetMenu }
-			0 { Check-ExitConfirmation }  # Exit the script
+			9 { Show-AboutHelp }
+			0 { Exit-Script }
 			default {
 				Write-Host "Invalid option. Please try again."
 				Wait-WithDelay
@@ -399,6 +401,32 @@ function Show-KrbtgtResetMenu {
 		}
 	} while ($true)
 }
+
+function Show-AboutHelp {
+	Clear-Host
+	Write-Host "=== About / Help ===" -ForegroundColor Cyan
+	Write-Host ""
+	Write-Host "PBR AD Users Management Script"
+	Write-Host ""
+	Write-Host "This script is designed to help administrators manage Active Directory user passwords efficiently."
+	Write-Host ""
+	Write-Host "Features include:"
+	Write-Host "- Importing users into a dataset by OU, group membership, file, or username."
+	Write-Host "- Resetting user passwords to either a common string or unique random strings."
+	Write-Host "- Setting 'PasswordNeverExpires' and 'ChangePasswordAtLogon' flags for users in the dataset."
+	Write-Host "- Generating various reports on user password statuses."
+	Write-Host "- Performing krbtgt password resets with scheduling options."
+	Write-Host ""
+	Write-Host "Please ensure that you have suitable backups of your Active Directory environment before making bulk changes."
+	Write-Host "Use this tool responsibly and verify changes in a test environment if possible."
+	Write-Host "Released with no warranties. Use at your own risk."
+	Write-Host ""
+	Write-Host "For any queries, contact the script author."
+	Write-Host ""
+	Wait-ForExplicitContinue
+}
+
+
 
 #################################### ---End of Main Menu Functions--- ########################################
 
