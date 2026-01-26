@@ -38,6 +38,7 @@
 - [X] Code in an additional check window for the dataset when doing a file import.
 - [ ] Implement error handling
 - [ ] Code in logging functionality
+- [ ] Add dynamic updating for user status, when called.
 
 
 
@@ -420,6 +421,8 @@ function Show-LoadedDatasetSummary {
 		Write-Host "Total Users in Dataset: $($global:CurrentDataset.Count)"
 		Write-Host "Active Users: $activeCount" -ForegroundColor Green
 		Write-Host "Disabled Users: $disabledCount" -ForegroundColor Red
+		Write-Host "Note: User status is determined at import, not dynamically updated." -ForegroundColor Yellow
+
 	}
 	Wait-ForExplicitContinue
 }
@@ -434,6 +437,7 @@ function Show-LoadedDatasetEntries {
 		Write-Host "SAM Names in the current dataset:"
 		Show-UserStatus
 	}
+	Write-Host "Note: User status is determined at import, not dynamically updated." -ForegroundColor Yellow
 	Wait-ForContinue
 }
 
@@ -445,7 +449,7 @@ function ExportDataset {
 		return
 	}
  else {
-		$global:CurrentDataset | Select-Object -ExpandProperty SamAccountName | Export-Csv "$PWD\DatasetExport-$Time.csv" -Encoding UTF8 -NoTypeInformation
+		$global:CurrentDataset | Select-Object SamAccountName | Export-Csv "$PWD\DatasetExport-$Time.csv" -Encoding UTF8 -NoTypeInformation
 		Write-Host "Users exported to $PWD\DatasetExport-$Time.csv" -ForegroundColor Green
 		Write-Host "Total users exported: $($global:CurrentDataset.Count)."
 		Wait-ForExplicitContinue
@@ -810,7 +814,7 @@ function ImportByGroup {
 function ImportByFile {
 	Clear-Host
 	Write-Host "=== Import by File ===" -ForegroundColor Cyan
-	Write-Host "Please ensure that the file contains only usernames, with no headers."
+	Write-Host "File Importing supports CSV files with either a single column of usernames `nor multiple columns with a 'SamAccountName' or 'username' header." -ForegroundColor Yellow
 	Read-Host "Please select the CSV file containing user data. `nPress Enter to continue"
 	$file = New-Object System.Windows.Forms.OpenFileDialog -Property @{
 		InitialDirectory = [Environment]::GetFolderPath('Desktop')
