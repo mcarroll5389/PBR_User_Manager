@@ -78,18 +78,18 @@ $global:DisplayAndSelectFilteredItem = @()
 # Word Options for password setting.
 $global:words = @(
 	"Apple", "Banana", "Cherry", "Date", "Elderberry",
-	"Fruit", "Grape", "Honeydew", "Kiwi", "Lemon",
+	"Fruit", "Grape", "Honeydew", "Netball", "Lemon",
 	"Mango", "Orange", "Peach", "Quince", "Raspberry",
 	"Strawberry", "Tangerine", "Watermelon", "Apricot", "Blueberry",
 	"Cantaloupe", "Dragonfruit", "Guava", "Jackfruit", "Kumquat",
 	"Limes", "Nectarine", "Olive", "Papaya", "Pineapple",
-	"Pomegranate", "Raisin", "Satsuma", "Tomato", "Ugli",
+	"Pomegranate", "Raisin", "Satsuma", "Tomato", "Potato",
 	"Valley", "Walnut", "Xigua", "Yukon", "Zucchini",
-	"Angel", "Beast", "Camel", "Dwarf", "Elephant",
+	"Angel", "Beast", "Camel", "Steam", "Elephant",
 	"Flame", "Giraffe", "Horse", "Iguana", "Jaguar",
 	"Kangaroo", "Llama", "Monkey", "Newt", "Owlet",
 	"Panda", "Quail", "Rabbit", "Snake", "Tiger",
-	"Unicorn", "Vulture", "Whale", "Xenop", "Yak",
+	"Unicorn", "Vulture", "Whale", "Xenop", "Keeper",
 	"Zebra", "Airbus", "Barge", "Cargo", "Diesel",
 	"Engine", "Ferry", "Garage", "Highway", "Inlet",
 	"Junction", "Kiosk", "Lance", "Motor", "Naval",
@@ -99,7 +99,7 @@ $global:words = @(
 	"Fable", "Genre", "Haiku", "Index", "Journal",
 	"Knowledge", "Lyric", "Manuscript", "Novel", "Octave",
 	"Poetry", "Quote", "Reader", "Story", "Title",
-	"Volume", "Vegan", "Writing", "Xenophobic", "Yearly", "Zoned"
+	"Volume", "Vegan", "Writing", "Hollow", "Yearly", "Zoned"
 )
 # Special Character Options for password setting.
 $global:specialChars = @("@", "%", "!", ".")
