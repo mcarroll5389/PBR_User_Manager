@@ -1553,7 +1553,7 @@ function ExportUsersWithEnabledDisabledStatus {
 			}
 			Write-Host "Total Enabled Users: $($users.Count)" -ForegroundColor Green
 			Write-Host ""
-			$users | Format-Table -Property @{Name = "SamAccountName"; Expression = { $_.SamAccountName }; Width = 30}, @{Name = "Status"; Expression = { "Enabled" }; Width = 10} -AutoSize
+			$users | Format-Table -Property @{Name = "SamAccountName"; Expression = { $_.SamAccountName }}, @{Name = "Status"; Expression = { "Enabled" }} -AutoSize
 		}
 		2 {
 			# Disabled users only
@@ -1567,7 +1567,7 @@ function ExportUsersWithEnabledDisabledStatus {
 			}
 			Write-Host "Total Disabled Users: $($users.Count)" -ForegroundColor Red
 			Write-Host ""
-			$users | Format-Table -Property @{Name = "SamAccountName"; Expression = { $_.SamAccountName }; Width = 30}, @{Name = "Status"; Expression = { "Disabled" }; Width = 10} -AutoSize
+			$users | Format-Table -Property @{Name = "SamAccountName"; Expression = { $_.SamAccountName }}, @{Name = "Status"; Expression = { "Disabled" }} -AutoSize
 		}
 		3 {
 			# All users with status
@@ -1579,8 +1579,13 @@ function ExportUsersWithEnabledDisabledStatus {
 				Wait-ForExplicitContinue
 				return
 			}
-			$enabledCount = ($users | Where-Object { $_.Enabled -eq $true }).Count
-			$disabledCount = ($users | Where-Object { $_.Enabled -eq $false }).Count
+			
+			# Calculate counts in a single pass using Group-Object
+			$groupedUsers = $users | Group-Object -Property Enabled
+			$enabledCount = ($groupedUsers | Where-Object { $_.Name -eq 'True' }).Count
+			if ($null -eq $enabledCount) { $enabledCount = 0 }
+			$disabledCount = ($groupedUsers | Where-Object { $_.Name -eq 'False' }).Count
+			if ($null -eq $disabledCount) { $disabledCount = 0 }
 			
 			Write-Host "Total Users: $($users.Count)" -ForegroundColor Cyan
 			Write-Host "  Enabled: $enabledCount" -ForegroundColor Green
