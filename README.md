@@ -35,6 +35,8 @@ A comprehensive PowerShell-based Active Directory user management and password r
 - View all users with last password change dates
 - Export comprehensive user attributes (SamAccountName, LastLogon, PasswordLastSet, PasswordNeverExpires, ChangePasswordAtLogon)
 - Export complete user data with all AD attributes
+- **View/export users by Enabled/Disabled status** (filter by enabled only, disabled only, or all users with status)
+
 
 ### 🔑 krbtgt Management
 - **Reset krbtgt password immediately** with safety prompts
