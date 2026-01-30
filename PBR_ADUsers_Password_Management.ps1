@@ -38,12 +38,7 @@
 - [X] Code in an additional check window for the dataset when doing a file import.
 - [ ] Implement error handling
 - [ ] Code in logging functionality
-- [ ] Add dynamic updating for user status, when called.
-
-
-
-## Changelog
-- **0.1.0** - Project initialization
+- [X] Add dynamic updating for user status, when called.
 
 ## Issue list:
     - [X] I've removed the $_SamAccount.name / SamAccount.User arguement from multiple areas. If storing dataset as an object, this will break.
@@ -422,7 +417,8 @@ function Show-AboutHelp {
 	Write-Host "Released with no warranties. Use at your own risk."
 	Write-Host ""
 	Write-Host "For any queries, contact the script author."
-	Write-Host ""
+	Write-Host "Released on GitHub"
+	Write-Host "For the latest, generic version: https://github.com/mcarroll5389/PBR_User_Manager"
 	Wait-ForExplicitContinue
 }
 
