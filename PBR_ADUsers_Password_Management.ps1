@@ -1355,6 +1355,7 @@ function ExportUsersWithPasswordNeverExpires {
 		Write-Host "Users whose PasswordNeverExpires is True"
 		$users | Format-Table -Property @{Name = "SamAccountName"; Expression = { $_.SamAccountName } }, @{Name = "PasswordNeverExpires"; Expression = { $_.PasswordNeverExpires } } -AutoSize
 	}
+	Write-Host "NOTE: PasswordNeverExpires is either True, or False." -ForegroundColor Yellow
 	$ViewUserExport = Read-Host "Press 1 to export this list to CSV, or Enter to continue"
 	if ($ViewUserExport -eq "1") {
 		$Time = Get-Date -Format "yyyyMMdd-HHmmss"
@@ -1362,6 +1363,7 @@ function ExportUsersWithPasswordNeverExpires {
 		$users | Select-Object SamAccountName, PasswordNeverExpires | Export-Csv -Path $ExportPath -Encoding UTF8 -NoTypeInformation
 		Write-Host "Users exported to $ExportPath" -ForegroundColor Green
 	}
+	
 	Wait-ForExplicitContinue
 }
 
@@ -1374,6 +1376,8 @@ function ExportUsersWithChangePasswordAtLogon {
 	
 	if ($users.Count -eq 0) {
 		Write-Host "No users found with ChangePasswordAtLogon flag set."
+		Write-Host "NOTE: ChangePasswordAtLogin is not a direct attribute, so we check pwdLastSet = 0 to determine this state." -ForegroundColor Yellow
+		Write-Host "NOTE: Whilst it may be referenced as a flag, it is actually determined by the pwdLastSet attribute value." -ForegroundColor Yellow
 		Wait-ForExplicitContinue
 		return
 	}
@@ -1383,6 +1387,9 @@ function ExportUsersWithChangePasswordAtLogon {
 		$users | ForEach-Object { Write-Host "  - $($_.SamAccountName)" }
 		Write-Host ""
 		Write-Host "Total: $($users.Count) users" -ForegroundColor Cyan
+		Write-Host ""
+		Write-Host "NOTE: ChangePasswordAtLogin is not a direct attribute, so we check pwdLastSet = 0 to determine this state." -ForegroundColor Yellow
+		Write-Host "NOTE: Whilst it may be referenced as a flag, it is actually determined by the pwdLastSet attribute value." -ForegroundColor Yellow
 	}
 	
 	$ViewUserExport = Read-Host "Press 1 to export this list to CSV, or Enter to continue"
@@ -1408,7 +1415,9 @@ function DisplayAndExportNotChangedToday {
  else {
 		Write-Host "Users whose passwords were NOT changed today:"
 		$users | Format-Table -Property @{Name = "SamAccountName"; Expression = { $_.SamAccountName } }, @{Name = "PasswordLastSet"; Expression = { $_.PasswordLastSet } } -AutoSize
-		Write-Host "NOTE: Blank data typically means the account has ChangePasswordAtLogon set to True" -ForegroundColor yellow
+			Write-Host "NOTE: Blank data typically means the account has ChangePasswordAtLogon set to 0 (aka True)" -ForegroundColor yellow
+			Write-Host "NOTE: ChangePasswordAtLogon is set by PasswordLastSet being null or 0." -ForegroundColor yellow
+			Write-Host "NOTE: This means that whilst the password has not been changed yet, it is due to be changed at logon." -ForegroundColor yellow
 		$ViewUserExport = Read-Host "Press 1 to export this list to CSV, or Enter to continue"
 		if ($ViewUserExport -eq "1") {
 			$Time = Get-Date -Format "yyyyMMdd-HHmmss"
@@ -1420,6 +1429,7 @@ function DisplayAndExportNotChangedToday {
 			return
 		}
 	}
+
 	Wait-ForExplicitContinue
 }
 
@@ -1436,6 +1446,8 @@ function ExportUsersChangedToday {
 	else {
 		Write-Host "Users whose passwords were changed today:"
 		$users | Format-Table -Property @{Name = "SamAccountName"; Expression = { $_.SamAccountName } }, @{Name = "PasswordLastSet"; Expression = { $_.PasswordLastSet } } -AutoSize
+		Write-Host ""
+		Write-Host "NOTE: This is determined by PasswordLastSet -ge today." -ForegroundColor yellow
 	}
 	$ViewUserExport = Read-Host "Press 1 to export this list to CSV, or Enter to continue"
 	if ($ViewUserExport -eq "1") {
@@ -1462,6 +1474,9 @@ function DisplayAndExportLastPasswordChange {
  else {
 		Write-Host "Users and their LastPasswordChange dates:"
 		$users | Format-Table -Property @{Name = "SamAccountName"; Expression = { $_.SamAccountName } }, @{Name = "PasswordLastSet"; Expression = { $_.PasswordLastSet } } -AutoSize
+		Write-Host ""
+		Write-Host "NOTE: Blank data typically means the account has ChangePasswordAtLogon set to True" -ForegroundColor Yellow
+		Write-Host "NOTE: These users will have to change their password at next logon, but have not done this yet" -ForegroundColor Yellow
 	}
 	$ViewUserExport = Read-Host "Press 1 to export this list to CSV, or Enter to continue"
 	if ($ViewUserExport -eq "1") {
@@ -1469,8 +1484,7 @@ function DisplayAndExportLastPasswordChange {
 		$ExportPath = "$PWD\AllUsersWithLastPasswordChangeDate-$Time.csv"
 		$users | Select-Object SamAccountName, PasswordLastSet | Export-Csv -Path $ExportPath -Encoding UTF8 -NoTypeInformation
 		Write-Host "Users exported to $ExportPath" -ForegroundColor Green
-		Write-Host "NOTE: Blank data typically means the account has ChangePasswordAtLogon set to True" -ForegroundColor Yellow
-		Write-Host "NOTE: These users will have to change their password at next logon, but have not done this yet" -ForegroundColor Yellow
+
 	}
 	Wait-ForExplicitContinue
 }
@@ -1492,14 +1506,16 @@ function ExportAllUsersWithAttributes {
 		$usersWithCalculated = $users | Select-Object SamAccountName, @{Name="LastLogon"; Expression={ if ($_.LastLogon -ne 0) { [DateTime]::FromFileTime($_.LastLogon) } else { $null }}}, PasswordLastSet, PasswordNeverExpires, @{Name="ChangePasswordAtLogon"; Expression={ $_.pwdLastSet -eq 0 }}
 		$usersWithCalculated | Format-Table -AutoSize
 	}
+	Write-Host ""
+	Write-Host "NOTE: PasswordLastSet being null/0 has the effect of setting ChangePasswordAtLogon to True." -ForegroundColor Yellow
+	Write-Host "NOTE: This is because ChangePasswordAtLogon isn't actually a True or False value, `nbut is determined by PasswordLastSet being 0." -ForegroundColor Yellow
 	$ViewUserExport = Read-Host "Press 1 to export this list to CSV, or Enter to continue"
 	if ($ViewUserExport -eq "1") {
 		$Time = Get-Date -Format "yyyyMMdd-HHmmss"
 		$ExportPath = "$PWD\AllUsersCommonAttributes-$Time.csv"
 		# Calculate ChangePasswordAtLogon from pwdLastSet for export and convert LastLogon to readable date
 		$users | Select-Object SamAccountName, @{Name="LastLogon"; Expression={ if ($_.LastLogon -ne 0) { [DateTime]::FromFileTime($_.LastLogon) } else { $null }}}, PasswordLastSet, PasswordNeverExpires, @{Name="ChangePasswordAtLogon"; Expression={ $_.pwdLastSet -eq 0 }} | Export-Csv -Path $ExportPath -Encoding UTF8 -NoTypeInformation
-		Write-Host "ChangePasswordAtLogon indicates if the user must change their password at next logon." -ForegroundColor Yellow
-		Write-Host "A null or blank value in PasswordLastSet typically means the account has ChangePasswordAtLogon set to True." -ForegroundColor Yellow
+
 		Write-Host "Users exported to $ExportPath" -ForegroundColor Green
 	}
 	Wait-ForExplicitContinue
