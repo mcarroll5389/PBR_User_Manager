@@ -780,7 +780,10 @@ function ImportByGroup {
 
 	# Get users in the selected group
 	$groupMembers = Get-ADGroupMember -Identity $selectedGroup.DistinguishedName -Recursive | Where-Object { $_.objectClass -eq 'user' }
-	$users = $groupMembers | ForEach-Object { Get-ADUser -Identity $_.DistinguishedName -Properties SamAccountName, Enabled }
+	$users = $groupMembers | ForEach-Object { 
+		Get-ADUser -Identity $_.DistinguishedName -Properties SamAccountName, Enabled | 
+		Select-Object SamAccountName, Enabled 
+	}
 
 	if ($users.Count -eq 0) {
 		Write-Host "No users found in the selected group." -ForegroundColor Yellow
