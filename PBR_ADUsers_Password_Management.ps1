@@ -175,8 +175,7 @@ function Show-ManageDatasetMenu {
 		Write-Host "4. View All Dataset Entries (User SAM Names)"
 		Write-Host "5. Export Dataset"
 		Write-Host "6. Clear Dataset"
-		Write-Host "7. Filter Dataset by Status"
-		Write-Host "8. Delete Users from Active Directory"
+		Write-Host "7. Delete Users from Active Directory"
 		Write-Host "0. Back to Main Menu"
 		$choice = Read-Host "Enter your choice"
         
@@ -187,8 +186,7 @@ function Show-ManageDatasetMenu {
 			4 { Show-LoadedDatasetEntries } # Done
 			5 { ExportDataset } # Done
 			6 { ResetDatasetVariables } # Done
-			7 { Filter-DatasetByStatus } # New
-			8 { Delete-UsersFromAD } # New
+			7 { Delete-UsersFromAD } # New
 			0 { Show-MainMenu } # Done
 			default { 
 				Write-Host "Invalid option. Please try again."
@@ -245,6 +243,8 @@ function RemoveUsersFromDatasetMenu {
 		Write-Host "2. Bulk Remove by Group"
 		Write-Host "3. Bulk Remove by OU"
 		Write-Host "4. Bulk Remove by Names (comma-separated)"
+		Write-Host "5. Show Only Enabled Users"
+		Write-Host "6. Show Only Disabled Users"
 		Write-Host "0. Return to Previous Menu"
 		Write-Host ""
         
@@ -255,6 +255,8 @@ function RemoveUsersFromDatasetMenu {
 			2 { BulkRemoveByGroup }
 			3 { BulkRemoveByOU }
 			4 { BulkRemoveByNames }
+			5 { Show-OnlyEnabledUsers }
+			6 { Show-OnlyDisabledUsers }
 			0 { return }
 			default {
 				Write-Host "Invalid option. Please try again." -ForegroundColor Red
@@ -2854,6 +2856,60 @@ function Filter-DatasetByStatus {
 			}
 		}
 	} while ($true)
+}
+
+# Show Only Enabled Users
+function Show-OnlyEnabledUsers {
+	Clear-Host
+	Write-Host "=== Filtering to Enabled Users Only ===" -ForegroundColor Cyan
+	Test-DatasetPopulated
+	if ($global:CurrentDataset.Count -eq 0) {
+		return
+	}
+	
+	$enabledUsers = $global:CurrentDataset | Where-Object { $_.Enabled -eq $true }
+	
+	if ($enabledUsers.Count -eq 0) {
+		Write-Host "No enabled users found in current dataset." -ForegroundColor Yellow
+		Wait-ForExplicitContinue
+		return
+	}
+	
+	$global:CurrentDataset = $enabledUsers
+	# Remove any existing filter suffixes before adding new one
+	$baseName = $global:CurrentDatasetName -replace ' \[(Enabled|Disabled) Only\]$', ''
+	$global:CurrentDatasetName = "$baseName [Enabled Only]"
+	
+	Write-Host "Dataset filtered to enabled users only."
+	Write-Host "New count: $($global:CurrentDataset.Count)" -ForegroundColor Green
+	Wait-ForExplicitContinue
+}
+
+# Show Only Disabled Users
+function Show-OnlyDisabledUsers {
+	Clear-Host
+	Write-Host "=== Filtering to Disabled Users Only ===" -ForegroundColor Cyan
+	Test-DatasetPopulated
+	if ($global:CurrentDataset.Count -eq 0) {
+		return
+	}
+	
+	$disabledUsers = $global:CurrentDataset | Where-Object { $_.Enabled -eq $false }
+	
+	if ($disabledUsers.Count -eq 0) {
+		Write-Host "No disabled users found in current dataset." -ForegroundColor Yellow
+		Wait-ForExplicitContinue
+		return
+	}
+	
+	$global:CurrentDataset = $disabledUsers
+	# Remove any existing filter suffixes before adding new one
+	$baseName = $global:CurrentDatasetName -replace ' \[(Enabled|Disabled) Only\]$', ''
+	$global:CurrentDatasetName = "$baseName [Disabled Only]"
+	
+	Write-Host "Dataset filtered to disabled users only."
+	Write-Host "New count: $($global:CurrentDataset.Count)" -ForegroundColor Green
+	Wait-ForExplicitContinue
 }
 
 # Enable All Users in Dataset
