@@ -28,7 +28,7 @@ A comprehensive PowerShell-based Active Directory user management and password r
   - Batch password reset with unique generated passwords
   - Individual password reset with export to CSV
   - Set ChangePasswordAtLogon flag automatically
-  - Secure password generation (32 characters, crypto-random)
+  - Secure password generation using memorable word combinations with numbers and special characters
 - **Password Flag Management:**
   - Set/unset PasswordNeverExpires flag
   - Set/unset ChangePasswordAtLogon flag
@@ -222,10 +222,24 @@ bwilliams
 ```
 
 ### Password Generation
-Passwords are generated using:
-- **Length:** 32 characters minimum (configurable)
-- **Complexity:** Uppercase, lowercase, digits, special characters
+
+#### User Passwords
+User passwords are generated using a memorable format combining:
+- **Three random words** from a word list
+- **Three random digits** (0-9)
+- **One special character**
+- **Format:** `word1word2word3digit1digit2digit3specialchar`
+- **Example:** `appleorangebanana123!`
+
+This format creates strong, memorable passwords that users can type easily while meeting complexity requirements.
+
+#### Service Account Passwords (krbtgt)
+Service account passwords use maximum security:
+- **Length:** 32 characters
+- **Complexity:** Random uppercase, lowercase, digits, and special characters
 - **Method:** Cryptographically secure random (Get-Random with ASCII 33-126)
+
+Service accounts like krbtgt do not require memorable passwords since they are not used for interactive logins.
 
 ## Troubleshooting
 
