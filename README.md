@@ -36,6 +36,12 @@ A comprehensive PowerShell-based Active Directory user management and password r
 - Export comprehensive user attributes (SamAccountName, LastLogon, PasswordLastSet, PasswordNeverExpires, ChangePasswordAtLogon)
 - Export complete user data with all AD attributes
 - **View/export users by Enabled/Disabled status** (filter by enabled only, disabled only, or all users with status)
+- **Export by Group:**
+  - Export users with their groups (User | Groups format)
+  - Export groups with their users (Group | Users format)
+  - Export users with multiple groups
+  - Export groups with no users
+  - Export users with no groups
 
 
 ### 🔑 krbtgt Management
@@ -122,6 +128,11 @@ Schedule krbtgt Password Reset → Enter delay (e.g., 12 hours)
 - **ExportUsersWithChangePasswordAtLogon** - Identify accounts requiring password change
 - **ExportUsersChangedToday** - Track recent password changes
 - **ExportAllUsersWithAttributes** - Comprehensive user attribute export
+- **ExportUsersWithGroups** - Export users with their group memberships
+- **ExportGroupsWithUsers** - Export groups with their user members
+- **ExportUsersWithMultipleGroups** - Find users belonging to multiple groups
+- **ExportGroupsWithNoUsers** - Identify empty groups
+- **ExportUsersWithNoGroups** - Find users without group memberships
 
 ### krbtgt Functions
 - **ResetkrbtgtPasswordNow** - Immediate krbtgt reset with safety checks

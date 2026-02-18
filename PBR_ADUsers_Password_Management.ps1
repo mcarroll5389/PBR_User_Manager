@@ -350,7 +350,8 @@ function Show-ReportsMenu {
 		Write-Host "6. View/Export All Users with SamName, LastLogon, PasswordLastSet, PasswordNeverExpires, ChangePasswordAtLogon to CSV"
 		Write-Host "7. Export All Users & All User Data to CSV"
 		Write-Host "8. View/Export All Users with Enabled/Disabled Status"
-		Write-Host "9. Back to Previous Menu"
+		Write-Host "9. Export by Group"
+		Write-Host "10. Back to Previous Menu"
 		Write-Host "0. Back to Main Menu"
         
 		$choice = Read-Host "Enter your choice"
@@ -364,7 +365,8 @@ function Show-ReportsMenu {
 			6 { ExportAllUsersWithAttributes } 
 			7 { ExportAllUsersFullData }
 			8 { ExportUsersWithEnabledDisabledStatus }
-			9 { return }
+			9 { Show-ExportByGroupMenu }
+			10 { return }
 			0 { Show-MainMenu }
 			default {
 				Write-Host "Invalid option. Please try again."
@@ -1636,6 +1638,336 @@ function ExportUsersWithEnabledDisabledStatus {
 		$users | Select-Object SamAccountName, @{Name="Status"; Expression={ if ($_.Enabled) { "Enabled" } else { "Disabled" }}} | Export-Csv -Path $ExportPath -Encoding UTF8 -NoTypeInformation
 		Write-Host "Users exported to $ExportPath" -ForegroundColor Green
 	}
+	Wait-ForExplicitContinue
+}
+
+# Export by Group Menu and Functions
+function Show-ExportByGroupMenu {
+	do {
+		Clear-Host
+		Write-Host "=== Export by Group ===" -ForegroundColor Cyan
+		Write-Host ""
+		Write-Host "1. Export Users with their Groups"
+		Write-Host "2. Export Groups with their Users"
+		Write-Host "3. Export Users with Multiple Groups"
+		Write-Host "4. Export Groups with No Users"
+		Write-Host "5. Export Users with No Groups"
+		Write-Host "0. Back to Reports Menu"
+		Write-Host ""
+		
+		$choice = Read-Host "Enter your choice"
+		
+		switch ($choice) {
+			1 { ExportUsersWithGroups }
+			2 { ExportGroupsWithUsers }
+			3 { ExportUsersWithMultipleGroups }
+			4 { ExportGroupsWithNoUsers }
+			5 { ExportUsersWithNoGroups }
+			0 { return }
+			default {
+				Write-Host "Invalid option. Please try again."
+				Wait-WithDelay
+			}
+		}
+	} while ($true)
+}
+
+function ExportUsersWithGroups {
+	Clear-Host
+	Write-Host "=== Export Users with their Groups ===" -ForegroundColor Cyan
+	Write-Host "Gathering user and group information, please wait..." -ForegroundColor Yellow
+	Write-Host ""
+	
+	# Get all users
+	$users = Get-ADUser -Filter * -Properties SamAccountName, MemberOf
+	
+	if ($users.Count -eq 0) {
+		Write-Host "No users found."
+		Wait-ForExplicitContinue
+		return
+	}
+	
+	# Build data array with users and their groups
+	$userData = @()
+	foreach ($user in $users) {
+		$groupNames = @()
+		if ($user.MemberOf) {
+			foreach ($groupDN in $user.MemberOf) {
+				try {
+					$group = Get-ADGroup -Identity $groupDN
+					$groupNames += $group.Name
+				}
+				catch {
+					# Skip if group cannot be retrieved
+				}
+			}
+		}
+		
+		$groupList = if ($groupNames.Count -gt 0) { $groupNames -join "; " } else { "(No Groups)" }
+		
+		$userData += [PSCustomObject]@{
+			User   = $user.SamAccountName
+			Groups = $groupList
+		}
+	}
+	
+	# Display preview
+	Write-Host "Preview (first 20 users):" -ForegroundColor Cyan
+	$userData | Select-Object -First 20 | Format-Table -AutoSize
+	Write-Host ""
+	Write-Host "Total users: $($userData.Count)" -ForegroundColor Cyan
+	Write-Host ""
+	
+	# Export option
+	$export = Read-Host "Press 1 to export this list to CSV, or Enter to continue"
+	if ($export -eq "1") {
+		$Time = Get-Date -Format "yyyyMMdd-HHmmss"
+		$ExportPath = "$PWD\UsersWithGroups-$Time.csv"
+		$userData | Export-Csv -Path $ExportPath -Encoding UTF8 -NoTypeInformation
+		Write-Host "Users with groups exported to $ExportPath" -ForegroundColor Green
+	}
+	
+	Wait-ForExplicitContinue
+}
+
+function ExportGroupsWithUsers {
+	Clear-Host
+	Write-Host "=== Export Groups with their Users ===" -ForegroundColor Cyan
+	Write-Host "Gathering group and user information, please wait..." -ForegroundColor Yellow
+	Write-Host ""
+	
+	# Get all groups
+	$groups = Get-ADGroup -Filter * -Properties Members
+	
+	if ($groups.Count -eq 0) {
+		Write-Host "No groups found."
+		Wait-ForExplicitContinue
+		return
+	}
+	
+	# Build data array with groups and their users
+	$groupData = @()
+	foreach ($group in $groups) {
+		$userNames = @()
+		try {
+			$members = Get-ADGroupMember -Identity $group.DistinguishedName -Recursive | Where-Object { $_.objectClass -eq 'user' }
+			if ($members) {
+				foreach ($member in $members) {
+					$userNames += $member.SamAccountName
+				}
+			}
+		}
+		catch {
+			# Skip if members cannot be retrieved
+		}
+		
+		$userList = if ($userNames.Count -gt 0) { $userNames -join "; " } else { "(No Users)" }
+		
+		$groupData += [PSCustomObject]@{
+			Group = $group.Name
+			Users = $userList
+		}
+	}
+	
+	# Display preview
+	Write-Host "Preview (first 20 groups):" -ForegroundColor Cyan
+	$groupData | Select-Object -First 20 | Format-Table -AutoSize
+	Write-Host ""
+	Write-Host "Total groups: $($groupData.Count)" -ForegroundColor Cyan
+	Write-Host ""
+	
+	# Export option
+	$export = Read-Host "Press 1 to export this list to CSV, or Enter to continue"
+	if ($export -eq "1") {
+		$Time = Get-Date -Format "yyyyMMdd-HHmmss"
+		$ExportPath = "$PWD\GroupsWithUsers-$Time.csv"
+		$groupData | Export-Csv -Path $ExportPath -Encoding UTF8 -NoTypeInformation
+		Write-Host "Groups with users exported to $ExportPath" -ForegroundColor Green
+	}
+	
+	Wait-ForExplicitContinue
+}
+
+function ExportUsersWithMultipleGroups {
+	Clear-Host
+	Write-Host "=== Export Users with Multiple Groups ===" -ForegroundColor Cyan
+	Write-Host "Gathering user and group information, please wait..." -ForegroundColor Yellow
+	Write-Host ""
+	
+	# Get all users
+	$users = Get-ADUser -Filter * -Properties SamAccountName, MemberOf
+	
+	if ($users.Count -eq 0) {
+		Write-Host "No users found."
+		Wait-ForExplicitContinue
+		return
+	}
+	
+	# Build data array with users who have multiple groups
+	$userData = @()
+	foreach ($user in $users) {
+		$groupNames = @()
+		if ($user.MemberOf) {
+			foreach ($groupDN in $user.MemberOf) {
+				try {
+					$group = Get-ADGroup -Identity $groupDN
+					$groupNames += $group.Name
+				}
+				catch {
+					# Skip if group cannot be retrieved
+				}
+			}
+		}
+		
+		# Only include users with 2 or more groups
+		if ($groupNames.Count -gt 1) {
+			$groupList = $groupNames -join "; "
+			
+			$userData += [PSCustomObject]@{
+				User       = $user.SamAccountName
+				GroupCount = $groupNames.Count
+				Groups     = $groupList
+			}
+		}
+	}
+	
+	if ($userData.Count -eq 0) {
+		Write-Host "No users with multiple groups found."
+		Wait-ForExplicitContinue
+		return
+	}
+	
+	# Display preview
+	Write-Host "Preview (first 20 users):" -ForegroundColor Cyan
+	$userData | Select-Object -First 20 | Format-Table -AutoSize
+	Write-Host ""
+	Write-Host "Total users with multiple groups: $($userData.Count)" -ForegroundColor Cyan
+	Write-Host ""
+	
+	# Export option
+	$export = Read-Host "Press 1 to export this list to CSV, or Enter to continue"
+	if ($export -eq "1") {
+		$Time = Get-Date -Format "yyyyMMdd-HHmmss"
+		$ExportPath = "$PWD\UsersWithMultipleGroups-$Time.csv"
+		$userData | Export-Csv -Path $ExportPath -Encoding UTF8 -NoTypeInformation
+		Write-Host "Users with multiple groups exported to $ExportPath" -ForegroundColor Green
+	}
+	
+	Wait-ForExplicitContinue
+}
+
+function ExportGroupsWithNoUsers {
+	Clear-Host
+	Write-Host "=== Export Groups with No Users ===" -ForegroundColor Cyan
+	Write-Host "Gathering group information, please wait..." -ForegroundColor Yellow
+	Write-Host ""
+	
+	# Get all groups
+	$groups = Get-ADGroup -Filter * -Properties Members
+	
+	if ($groups.Count -eq 0) {
+		Write-Host "No groups found."
+		Wait-ForExplicitContinue
+		return
+	}
+	
+	# Build data array with groups that have no users
+	$groupData = @()
+	foreach ($group in $groups) {
+		$hasUsers = $false
+		try {
+			$members = Get-ADGroupMember -Identity $group.DistinguishedName -Recursive | Where-Object { $_.objectClass -eq 'user' }
+			if ($members -and $members.Count -gt 0) {
+				$hasUsers = $true
+			}
+		}
+		catch {
+			# If we can't retrieve members, skip this group
+			continue
+		}
+		
+		# Only include groups with no users
+		if (-not $hasUsers) {
+			$groupData += [PSCustomObject]@{
+				Group = $group.Name
+				DistinguishedName = $group.DistinguishedName
+			}
+		}
+	}
+	
+	if ($groupData.Count -eq 0) {
+		Write-Host "No groups without users found. All groups have at least one user."
+		Wait-ForExplicitContinue
+		return
+	}
+	
+	# Display preview
+	Write-Host "Groups with no users:" -ForegroundColor Cyan
+	$groupData | Format-Table -AutoSize
+	Write-Host ""
+	Write-Host "Total groups with no users: $($groupData.Count)" -ForegroundColor Cyan
+	Write-Host ""
+	
+	# Export option
+	$export = Read-Host "Press 1 to export this list to CSV, or Enter to continue"
+	if ($export -eq "1") {
+		$Time = Get-Date -Format "yyyyMMdd-HHmmss"
+		$ExportPath = "$PWD\GroupsWithNoUsers-$Time.csv"
+		$groupData | Export-Csv -Path $ExportPath -Encoding UTF8 -NoTypeInformation
+		Write-Host "Groups with no users exported to $ExportPath" -ForegroundColor Green
+	}
+	
+	Wait-ForExplicitContinue
+}
+
+function ExportUsersWithNoGroups {
+	Clear-Host
+	Write-Host "=== Export Users with No Groups ===" -ForegroundColor Cyan
+	Write-Host "Gathering user information, please wait..." -ForegroundColor Yellow
+	Write-Host ""
+	
+	# Get all users
+	$users = Get-ADUser -Filter * -Properties SamAccountName, MemberOf
+	
+	if ($users.Count -eq 0) {
+		Write-Host "No users found."
+		Wait-ForExplicitContinue
+		return
+	}
+	
+	# Build data array with users who have no groups
+	$userData = @()
+	foreach ($user in $users) {
+		# Only include users with no group memberships
+		if (-not $user.MemberOf -or $user.MemberOf.Count -eq 0) {
+			$userData += [PSCustomObject]@{
+				User = $user.SamAccountName
+			}
+		}
+	}
+	
+	if ($userData.Count -eq 0) {
+		Write-Host "No users without groups found. All users are members of at least one group."
+		Wait-ForExplicitContinue
+		return
+	}
+	
+	# Display preview
+	Write-Host "Users with no groups:" -ForegroundColor Cyan
+	$userData | Format-Table -AutoSize
+	Write-Host ""
+	Write-Host "Total users with no groups: $($userData.Count)" -ForegroundColor Cyan
+	Write-Host ""
+	
+	# Export option
+	$export = Read-Host "Press 1 to export this list to CSV, or Enter to continue"
+	if ($export -eq "1") {
+		$Time = Get-Date -Format "yyyyMMdd-HHmmss"
+		$ExportPath = "$PWD\UsersWithNoGroups-$Time.csv"
+		$userData | Export-Csv -Path $ExportPath -Encoding UTF8 -NoTypeInformation
+		Write-Host "Users with no groups exported to $ExportPath" -ForegroundColor Green
+	}
+	
 	Wait-ForExplicitContinue
 }
 
