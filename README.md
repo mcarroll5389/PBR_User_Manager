@@ -16,6 +16,8 @@ A comprehensive PowerShell-based Active Directory user management and password r
   - Remove users from dataset
   - Merge multiple import sources
   - Duplicate detection and prevention
+  - **Filter dataset by Enabled/Disabled status** (show only enabled, disabled, or all users)
+  - **Delete users from Active Directory** (permanent removal with double confirmation)
 
 ### 🔐 Password Operations
 - **Reset passwords for all users in dataset**
@@ -26,6 +28,12 @@ A comprehensive PowerShell-based Active Directory user management and password r
 - **Password Flag Management:**
   - Set/unset PasswordNeverExpires flag
   - Set/unset ChangePasswordAtLogon flag
+
+### 👥 User Account Management
+- **Enable/Disable user accounts in bulk**
+  - Enable all users in current dataset
+  - Disable all users in current dataset
+  - Batch processing with detailed success/failure reporting
 
 ### 📊 Global Reports
 - Export users with PasswordNeverExpires flag
@@ -99,6 +107,27 @@ Back to Main → Dataset Operations → Reset Passwords (All Users in Dataset)
 Main Menu → Global Reports → View/Export All Users with LastPasswordChange Date
 ```
 
+#### Disable All Users in a Specific OU
+```
+Main Menu → Manage Dataset → Load Users into Dataset → By OU
+Select target OU → Apply to Dataset
+Back to Main → Manage Users → Disable All Users in Dataset
+```
+
+#### Enable All Disabled Users in Dataset
+```
+Main Menu → Manage Dataset → Load Users into Dataset
+Manage Dataset → Filter Dataset by Status → Show Only Disabled Users
+Back to Main → Manage Users → Enable All Users in Dataset
+```
+
+#### Delete Inactive Users from Active Directory
+```
+Main Menu → Manage Dataset → Load Users into Dataset
+Manage Dataset → Filter Dataset by Status → Show Only Disabled Users
+Manage Dataset → Delete Users from Active Directory (requires double confirmation)
+```
+
 #### krbtgt Dual Reset Procedure (Basic, but it works)
 ```
 Main Menu → krbtgt Password Resets → Reset krbtgt Password Now → 
@@ -116,6 +145,12 @@ Schedule krbtgt Password Reset → Enter delay (e.g., 12 hours)
 ### Password Reset Functions
 - **ResetPasswordsForAllUsersInDataset** - Batch reset with shared or unique passwords
 - **ResetPasswordsForAllUsersInDatasetWithUniquePW** - Individual passwords exported to CSV
+
+### User Management Functions
+- **Filter-DatasetByStatus** - Filter current dataset to show only enabled or disabled users
+- **Enable-AllUsersInDataset** - Enable all user accounts in the current dataset
+- **Disable-AllUsersInDataset** - Disable all user accounts in the current dataset
+- **Delete-UsersFromAD** - Permanently delete users from Active Directory (requires double confirmation)
 
 ### Reporting Functions
 - **ExportUsersWithPasswordNeverExpires** - Find accounts with non-expiring passwords
@@ -139,6 +174,9 @@ Schedule krbtgt Password Reset → Enter delay (e.g., 12 hours)
 - Log files are created in script directory with timestamps
 - Logging is NOT thorough. If you need logging, consider contributing.
 - Requires Domain Admin rights for most operations
+- **DELETE FROM AD OPERATIONS ARE PERMANENT** - Always double-check your dataset before deleting users
+- **DISABLE OPERATIONS** should be tested carefully - disabled users cannot log in until re-enabled
+- Filter and verify your dataset before performing bulk enable/disable operations
 
 ## Configuration
 
