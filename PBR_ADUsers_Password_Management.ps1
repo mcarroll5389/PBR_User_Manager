@@ -237,16 +237,46 @@ function RemoveUsersFromDatasetMenu {
 		Write-Host "=== Remove Users from Dataset ===" -ForegroundColor Cyan
 		Write-Host "Current Dataset: $($global:CurrentDatasetName) | Users: $($global:CurrentDataset.Count)" -ForegroundColor Gray
 		Write-Host ""
+		Write-Host "1. Remove Single User"
+		Write-Host "2. Bulk Remove by Group"
+		Write-Host "3. Bulk Remove by OU"
+		Write-Host "4. Bulk Remove by Names (comma-separated)"
+		Write-Host "0. Return to Previous Menu"
+		Write-Host ""
         
-		# Display all users with numbers
-		# for ($i = 0; $i -lt $global:CurrentDataset.Count; $i++) {
-		# 	$user = $global:CurrentDataset[$i]
-		# 	$status = if ($user.Enabled) { "Active" } else { "Disabled" }
-		# 	$statusColor = if ($user.Enabled) { "Green" } else { "Red" }
-            
-		# 	Write-Host ("{0,4}. {1,-30}" -f ($i + 1), $user.SamAccountName) -NoNewline
-		# 	Write-Host " [$status]" -ForegroundColor $statusColor
-		# }
+		$choice = Read-Host "Enter your choice"
+        
+		switch ($choice) {
+			1 { RemoveSingleUserFromDataset }
+			2 { BulkRemoveByGroup }
+			3 { BulkRemoveByOU }
+			4 { BulkRemoveByNames }
+			0 { return }
+			default {
+				Write-Host "Invalid option. Please try again." -ForegroundColor Red
+				Wait-WithDelay
+			}
+		}
+	} while ($true)
+}
+
+function RemoveSingleUserFromDataset {
+	do {
+		Clear-Host
+        Refresh-CurrentDatasetStatus
+		# Check if dataset is empty
+		if ($global:CurrentDataset.Count -eq 0) {
+			Write-Host "=== Remove Single User from Dataset ===" -ForegroundColor Cyan
+			Write-Host ""
+			Write-Host "The dataset is empty. Please load users first." -ForegroundColor Yellow
+			Wait-ForExplicitContinue
+			return
+		}
+        
+		Write-Host "=== Remove Single User from Dataset ===" -ForegroundColor Cyan
+		Write-Host "Current Dataset: $($global:CurrentDatasetName) | Users: $($global:CurrentDataset.Count)" -ForegroundColor Gray
+		Write-Host ""
+        
 		Show-UserStatus
         
 		Write-Host ""
@@ -306,6 +336,411 @@ function RemoveUsersFromDatasetMenu {
 			Start-Sleep -Seconds 1
 		}
 	} while ($true)
+}
+
+# Helper function to remove users from dataset
+function Remove-UsersFromDataset {
+	param(
+		[Parameter(Mandatory=$true)]
+		[array]$UsersToRemove
+	)
+	
+	# Build lookup of users to remove for O(1) performance
+	$removeUsernames = @{}
+	foreach ($user in $UsersToRemove) {
+		$removeUsernames[$user.SamAccountName] = $true
+	}
+	
+	# Filter out the users to remove
+	$global:CurrentDataset = $global:CurrentDataset | Where-Object { -not $removeUsernames.ContainsKey($_.SamAccountName) }
+	
+	# Check if dataset is now empty
+	if ($global:CurrentDataset.Count -eq 0) {
+		$global:CurrentDatasetName = "None"
+	}
+}
+
+function BulkRemoveByGroup {
+	Clear-Host
+	Write-Host "=== Bulk Remove by Group ===" -ForegroundColor Cyan
+	Write-Host "Current Dataset: $($global:CurrentDatasetName) | Users: $($global:CurrentDataset.Count)" -ForegroundColor Gray
+	Write-Host ""
+	
+	# Get all AD Groups
+	$groups = Get-ADGroup -Filter * -Properties Members | Sort-Object Name
+	
+	if ($groups.Count -eq 0) {
+		Write-Host "No groups found in the environment." -ForegroundColor Yellow
+		Wait-ForExplicitContinue
+		return
+	}
+
+	# Build array with user counts from current dataset
+	$groupData = @()
+	Write-Host "Gathering group information, please wait..." -ForegroundColor Yellow
+	Write-Host "(This may take a moment for groups with nested memberships)" -ForegroundColor Gray
+	
+	# Build dataset lookup hashtable for O(1) performance
+	$datasetLookup = @{}
+	foreach ($user in $global:CurrentDataset) {
+		$datasetLookup[$user.SamAccountName] = $user
+	}
+	
+	foreach ($group in $groups) {
+		# Get group members and filter for user objects only
+		$groupMembers = Get-ADGroupMember -Identity $group.DistinguishedName -Recursive | Where-Object { $_.objectClass -eq 'user' }
+		
+		# Find matching users in dataset using hashtable lookup
+		$usersInDataset = @()
+		foreach ($member in $groupMembers) {
+			if ($datasetLookup.ContainsKey($member.SamAccountName)) {
+				$usersInDataset += $datasetLookup[$member.SamAccountName]
+			}
+		}
+		
+		# Only add groups that have users in our dataset
+		if ($usersInDataset.Count -gt 0) {
+			$groupData += [PSCustomObject]@{
+				Name              = $group.Name
+				UserCount         = $usersInDataset.Count
+				DistinguishedName = $group.DistinguishedName
+				UsersInDataset    = $usersInDataset
+			}
+		}
+	}
+
+	if ($groupData.Count -eq 0) {
+		Write-Host "No groups found with users that match the current dataset." -ForegroundColor Yellow
+		Wait-ForExplicitContinue
+		return
+	}
+
+	# Display groups in a structured list
+	Clear-Host
+	Write-Host "=== Groups with Users in Current Dataset ===" -ForegroundColor Cyan
+	Write-Host ""
+	
+	for ($i = 0; $i -lt $groupData.Count; $i++) {
+		Write-Host ("{0,3}. {1,-40} Users in dataset: {2,5}" -f ($i + 1), $groupData[$i].Name, $groupData[$i].UserCount)
+	}
+	
+	Write-Host ""
+	Write-Host "  0. Cancel" -ForegroundColor Red
+	Write-Host ""
+
+	# Prompt for selection
+	$selection = Read-Host "Enter your choice"
+	
+	# Handle cancel
+	if ($selection -eq "0") { 
+		return 
+	}
+	
+	# Validate numeric selection
+	if (-not ($selection -match '^\d+$')) {
+		Write-Host "Invalid selection. Please enter a number." -ForegroundColor Red
+		Wait-WithDelay
+		return
+	}
+	
+	$index = [int]$selection - 1
+	
+	if ($index -lt 0 -or $index -ge $groupData.Count) {
+		Write-Host "Invalid selection. Number out of range." -ForegroundColor Red
+		Wait-WithDelay
+		return
+	}
+
+	$selectedGroupData = $groupData[$index]
+	$groupName = $selectedGroupData.Name
+	$usersToRemove = $selectedGroupData.UsersInDataset
+	
+	Clear-Host
+	Write-Host "=== Confirm Bulk Removal ===" -ForegroundColor Cyan
+	Write-Host "Group: $groupName" -ForegroundColor Yellow
+	Write-Host "Users to be removed from dataset: $($usersToRemove.Count)" -ForegroundColor Yellow
+	Write-Host ""
+	
+	# Display users to be removed
+	Write-Host "Users that will be removed:" -ForegroundColor Yellow
+	foreach ($user in $usersToRemove) {
+		$status = if ($user.Enabled) { "Active" } else { "Disabled" }
+		$statusColor = if ($user.Enabled) { "Green" } else { "Red" }
+		Write-Host "  - $($user.SamAccountName)" -NoNewline
+		Write-Host " [$status]" -ForegroundColor $statusColor
+	}
+	Write-Host ""
+	
+	$confirm = Read-Host "Are you sure you want to remove these $($usersToRemove.Count) users from the dataset? (Y/N)"
+	
+	if ($confirm -eq "Y" -or $confirm -eq "y") {
+		Remove-UsersFromDataset -UsersToRemove $usersToRemove
+		
+		Write-Host ""
+		Write-Host "$($usersToRemove.Count) users removed from dataset." -ForegroundColor Green
+		Write-Host "Remaining users: $($global:CurrentDataset.Count)" -ForegroundColor Cyan
+		
+		if ($global:CurrentDataset.Count -eq 0) {
+			Write-Host ""
+			Write-Host "Dataset is now empty." -ForegroundColor Yellow
+		}
+		
+		Wait-ForExplicitContinue
+	}
+	else {
+		Write-Host "Removal cancelled." -ForegroundColor Gray
+		Wait-WithDelay
+	}
+}
+
+function BulkRemoveByOU {
+	Clear-Host
+	Write-Host "=== Bulk Remove by OU ===" -ForegroundColor Cyan
+	Write-Host "Current Dataset: $($global:CurrentDatasetName) | Users: $($global:CurrentDataset.Count)" -ForegroundColor Gray
+	Write-Host ""
+	
+	# Get all OUs
+	$ous = Get-ADOrganizationalUnit -Filter * | Sort-Object DistinguishedName
+	
+	if ($ous.Count -eq 0) {
+		Write-Host "No Organizational Units found in the environment." -ForegroundColor Yellow
+		Wait-ForExplicitContinue
+		return
+	}
+
+	# Build array with user counts from current dataset
+	$ouData = @()
+	Write-Host "Gathering OU information, please wait..." -ForegroundColor Yellow
+	
+	# Build dataset lookup hashtable for O(1) performance
+	$datasetLookup = @{}
+	foreach ($user in $global:CurrentDataset) {
+		$datasetLookup[$user.SamAccountName] = $user
+	}
+	
+	foreach ($ou in $ous) {
+		# Get users in this OU (only direct members)
+		$ouUsers = Get-ADUser -Filter * -SearchBase $ou.DistinguishedName -SearchScope OneLevel -Properties SamAccountName, Enabled
+		
+		# Find matching users in dataset using hashtable lookup
+		$usersInDataset = @()
+		foreach ($ouUser in $ouUsers) {
+			if ($datasetLookup.ContainsKey($ouUser.SamAccountName)) {
+				$usersInDataset += $datasetLookup[$ouUser.SamAccountName]
+			}
+		}
+		
+		# Only add OUs that have users in our dataset
+		if ($usersInDataset.Count -gt 0) {
+			$ouData += [PSCustomObject]@{
+				Name              = $ou.Name
+				UserCount         = $usersInDataset.Count
+				DistinguishedName = $ou.DistinguishedName
+				UsersInDataset    = $usersInDataset
+			}
+		}
+	}
+
+	if ($ouData.Count -eq 0) {
+		Write-Host "No OUs found with users that match the current dataset." -ForegroundColor Yellow
+		Wait-ForExplicitContinue
+		return
+	}
+
+	# Display OUs in a structured list
+	Clear-Host
+	Write-Host "=== OUs with Users in Current Dataset ===" -ForegroundColor Cyan
+	Write-Host ""
+	
+	for ($i = 0; $i -lt $ouData.Count; $i++) {
+		Write-Host ("{0,3}. {1,-40} Users in dataset: {2,5} | DN: {3}" -f ($i + 1), $ouData[$i].Name, $ouData[$i].UserCount, $ouData[$i].DistinguishedName)
+	}
+	
+	Write-Host ""
+	Write-Host "  0. Cancel" -ForegroundColor Red
+	Write-Host ""
+
+	# Prompt for selection
+	$selection = Read-Host "Enter your choice"
+	
+	# Handle cancel
+	if ($selection -eq "0") { 
+		return 
+	}
+	
+	# Validate numeric selection
+	if (-not ($selection -match '^\d+$')) {
+		Write-Host "Invalid selection. Please enter a number." -ForegroundColor Red
+		Wait-WithDelay
+		return
+	}
+	
+	$index = [int]$selection - 1
+	
+	if ($index -lt 0 -or $index -ge $ouData.Count) {
+		Write-Host "Invalid selection. Number out of range." -ForegroundColor Red
+		Wait-WithDelay
+		return
+	}
+
+	$selectedOUData = $ouData[$index]
+	$ouName = $selectedOUData.Name
+	$usersToRemove = $selectedOUData.UsersInDataset
+	
+	Clear-Host
+	Write-Host "=== Confirm Bulk Removal ===" -ForegroundColor Cyan
+	Write-Host "OU: $ouName" -ForegroundColor Yellow
+	Write-Host "Distinguished Name: $($selectedOUData.DistinguishedName)" -ForegroundColor Gray
+	Write-Host "Users to be removed from dataset: $($usersToRemove.Count)" -ForegroundColor Yellow
+	Write-Host ""
+	
+	# Display users to be removed
+	Write-Host "Users that will be removed:" -ForegroundColor Yellow
+	foreach ($user in $usersToRemove) {
+		$status = if ($user.Enabled) { "Active" } else { "Disabled" }
+		$statusColor = if ($user.Enabled) { "Green" } else { "Red" }
+		Write-Host "  - $($user.SamAccountName)" -NoNewline
+		Write-Host " [$status]" -ForegroundColor $statusColor
+	}
+	Write-Host ""
+	
+	$confirm = Read-Host "Are you sure you want to remove these $($usersToRemove.Count) users from the dataset? (Y/N)"
+	
+	if ($confirm -eq "Y" -or $confirm -eq "y") {
+		Remove-UsersFromDataset -UsersToRemove $usersToRemove
+		
+		Write-Host ""
+		Write-Host "$($usersToRemove.Count) users removed from dataset." -ForegroundColor Green
+		Write-Host "Remaining users: $($global:CurrentDataset.Count)" -ForegroundColor Cyan
+		
+		if ($global:CurrentDataset.Count -eq 0) {
+			Write-Host ""
+			Write-Host "Dataset is now empty." -ForegroundColor Yellow
+		}
+		
+		Wait-ForExplicitContinue
+	}
+	else {
+		Write-Host "Removal cancelled." -ForegroundColor Gray
+		Wait-WithDelay
+	}
+}
+
+function BulkRemoveByNames {
+	Clear-Host
+	Write-Host "=== Bulk Remove by Names ===" -ForegroundColor Cyan
+	Write-Host "Current Dataset: $($global:CurrentDatasetName) | Users: $($global:CurrentDataset.Count)" -ForegroundColor Gray
+	Write-Host ""
+	
+	Write-Host "Enter usernames to remove (comma-separated or one per line)" -ForegroundColor Yellow
+	Write-Host "Press Enter twice when done" -ForegroundColor Gray
+	Write-Host ""
+	
+	# Read multi-line input
+	$inputLines = @()
+	do {
+		$line = Read-Host
+		if ($line) {
+			$inputLines += $line
+		}
+	} while ($line)
+	
+	if ($inputLines.Count -eq 0) {
+		Write-Host "No usernames provided. Operation cancelled." -ForegroundColor Yellow
+		Wait-WithDelay
+		return
+	}
+	
+	# Parse usernames from input (handle both comma-separated and newline-separated)
+	$allUsernames = @()
+	foreach ($line in $inputLines) {
+		# Split by comma and trim whitespace
+		$usernames = $line -split ',' | ForEach-Object { $_.Trim() } | Where-Object { $_ }
+		$allUsernames += $usernames
+	}
+	
+	if ($allUsernames.Count -eq 0) {
+		Write-Host "No valid usernames found. Operation cancelled." -ForegroundColor Yellow
+		Wait-WithDelay
+		return
+	}
+	
+	# Build dataset lookup hashtable for O(1) performance
+	$datasetLookup = @{}
+	foreach ($user in $global:CurrentDataset) {
+		$datasetLookup[$user.SamAccountName] = $user
+	}
+	
+	# Find users in dataset that match the provided names
+	$usersToRemove = @()
+	$notFoundUsers = @()
+	
+	foreach ($username in $allUsernames) {
+		if ($datasetLookup.ContainsKey($username)) {
+			$usersToRemove += $datasetLookup[$username]
+		}
+		else {
+			$notFoundUsers += $username
+		}
+	}
+	
+	if ($usersToRemove.Count -eq 0) {
+		Write-Host ""
+		Write-Host "None of the provided usernames were found in the current dataset." -ForegroundColor Yellow
+		if ($notFoundUsers.Count -gt 0) {
+			Write-Host ""
+			Write-Host "Not found:" -ForegroundColor Red
+			foreach ($username in $notFoundUsers) {
+				Write-Host "  - $username" -ForegroundColor Red
+			}
+		}
+		Wait-ForExplicitContinue
+		return
+	}
+	
+	Clear-Host
+	Write-Host "=== Confirm Bulk Removal ===" -ForegroundColor Cyan
+	Write-Host "Users to be removed from dataset: $($usersToRemove.Count)" -ForegroundColor Yellow
+	Write-Host ""
+	
+	# Display users to be removed
+	Write-Host "Users that will be removed:" -ForegroundColor Yellow
+	foreach ($user in $usersToRemove) {
+		$status = if ($user.Enabled) { "Active" } else { "Disabled" }
+		$statusColor = if ($user.Enabled) { "Green" } else { "Red" }
+		Write-Host "  - $($user.SamAccountName)" -NoNewline
+		Write-Host " [$status]" -ForegroundColor $statusColor
+	}
+	
+	if ($notFoundUsers.Count -gt 0) {
+		Write-Host ""
+		Write-Host "Not found in dataset (will be skipped):" -ForegroundColor Red
+		foreach ($username in $notFoundUsers) {
+			Write-Host "  - $username" -ForegroundColor Red
+		}
+	}
+	
+	Write-Host ""
+	$confirm = Read-Host "Are you sure you want to remove these $($usersToRemove.Count) users from the dataset? (Y/N)"
+	
+	if ($confirm -eq "Y" -or $confirm -eq "y") {
+		Remove-UsersFromDataset -UsersToRemove $usersToRemove
+		
+		Write-Host ""
+		Write-Host "$($usersToRemove.Count) users removed from dataset." -ForegroundColor Green
+		Write-Host "Remaining users: $($global:CurrentDataset.Count)" -ForegroundColor Cyan
+		
+		if ($global:CurrentDataset.Count -eq 0) {
+			Write-Host ""
+			Write-Host "Dataset is now empty." -ForegroundColor Yellow
+		}
+		
+		Wait-ForExplicitContinue
+	}
+	else {
+		Write-Host "Removal cancelled." -ForegroundColor Gray
+		Wait-WithDelay
+	}
 }
 
 # Menu 2 - Users

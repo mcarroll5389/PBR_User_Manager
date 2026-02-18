@@ -13,7 +13,11 @@ A comprehensive PowerShell-based Active Directory user management and password r
 - **Dataset operations:**
   - View loaded users with summary statistics
   - Export current dataset to CSV
-  - Remove users from dataset
+  - Remove users from dataset (single or bulk):
+    - Remove individual users
+    - Bulk remove by AD Group membership
+    - Bulk remove by Organizational Unit
+    - Bulk remove by comma-separated list of names
   - Merge multiple import sources
   - Duplicate detection and prevention
 
@@ -98,6 +102,18 @@ A comprehensive PowerShell-based Active Directory user management and password r
 ```
 Main Menu → Manage Dataset → Import
 Back to Main → Dataset Operations → Reset Passwords (All Users in Dataset)
+```
+
+#### Bulk Remove Users by Group
+```
+Main Menu → Manage Dataset → Remove Users from Dataset → Bulk Remove by Group
+Select group → Confirm removal
+```
+
+#### Bulk Remove Users by OU
+```
+Main Menu → Manage Dataset → Remove Users from Dataset → Bulk Remove by OU
+Select OU → Confirm removal
 ```
 
 #### Generate Report of Users with Expired Passwords
