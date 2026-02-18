@@ -1750,6 +1750,8 @@ function ExportGroupsWithUsers {
 	foreach ($group in $groups) {
 		$userNames = @()
 		try {
+			# Using -Recursive to include users from nested groups (consistent with ImportByGroup function)
+			# Note: This may impact performance in large AD environments with deeply nested groups
 			$members = Get-ADGroupMember -Identity $group.DistinguishedName -Recursive | Where-Object { $_.objectClass -eq 'user' }
 			if ($members) {
 				foreach ($member in $members) {
@@ -1876,6 +1878,8 @@ function ExportGroupsWithNoUsers {
 	foreach ($group in $groups) {
 		$hasUsers = $false
 		try {
+			# Using -Recursive to include users from nested groups (consistent with ImportByGroup function)
+			# Note: This may impact performance in large AD environments with deeply nested groups
 			$members = Get-ADGroupMember -Identity $group.DistinguishedName -Recursive | Where-Object { $_.objectClass -eq 'user' }
 			if ($members -and $members.Count -gt 0) {
 				$hasUsers = $true
