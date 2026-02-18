@@ -2814,9 +2814,7 @@ function Filter-DatasetByStatus {
 				}
 				
 				$global:CurrentDataset = $enabledUsers
-				# Remove any existing filter suffixes before adding new one
-				$baseName = $global:CurrentDatasetName -replace ' \[(Enabled|Disabled) Only\]$', ''
-				$global:CurrentDatasetName = "$baseName [Enabled Only]"
+				Update-DatasetNameWithFilterSuffix -FilterSuffix "Enabled Only"
 				
 				Write-Host "Dataset filtered to enabled users only."
 				Write-Host "New count: $($global:CurrentDataset.Count)" -ForegroundColor Green
@@ -2836,9 +2834,7 @@ function Filter-DatasetByStatus {
 				}
 				
 				$global:CurrentDataset = $disabledUsers
-				# Remove any existing filter suffixes before adding new one
-				$baseName = $global:CurrentDatasetName -replace ' \[(Enabled|Disabled) Only\]$', ''
-				$global:CurrentDatasetName = "$baseName [Disabled Only]"
+				Update-DatasetNameWithFilterSuffix -FilterSuffix "Disabled Only"
 				
 				Write-Host "Dataset filtered to disabled users only."
 				Write-Host "New count: $($global:CurrentDataset.Count)" -ForegroundColor Green
@@ -2856,6 +2852,16 @@ function Filter-DatasetByStatus {
 			}
 		}
 	} while ($true)
+}
+
+# Helper function to update dataset name with filter suffix
+function Update-DatasetNameWithFilterSuffix {
+	param(
+		[string]$FilterSuffix
+	)
+	# Remove any existing filter suffixes before adding new one
+	$baseName = $global:CurrentDatasetName -replace ' \[(Enabled|Disabled) Only\]$', ''
+	$global:CurrentDatasetName = "$baseName [$FilterSuffix]"
 }
 
 # Show Only Enabled Users
@@ -2876,9 +2882,7 @@ function Show-OnlyEnabledUsers {
 	}
 	
 	$global:CurrentDataset = $enabledUsers
-	# Remove any existing filter suffixes before adding new one
-	$baseName = $global:CurrentDatasetName -replace ' \[(Enabled|Disabled) Only\]$', ''
-	$global:CurrentDatasetName = "$baseName [Enabled Only]"
+	Update-DatasetNameWithFilterSuffix -FilterSuffix "Enabled Only"
 	
 	Write-Host "Dataset filtered to enabled users only."
 	Write-Host "New count: $($global:CurrentDataset.Count)" -ForegroundColor Green
@@ -2903,9 +2907,7 @@ function Show-OnlyDisabledUsers {
 	}
 	
 	$global:CurrentDataset = $disabledUsers
-	# Remove any existing filter suffixes before adding new one
-	$baseName = $global:CurrentDatasetName -replace ' \[(Enabled|Disabled) Only\]$', ''
-	$global:CurrentDatasetName = "$baseName [Disabled Only]"
+	Update-DatasetNameWithFilterSuffix -FilterSuffix "Disabled Only"
 	
 	Write-Host "Dataset filtered to disabled users only."
 	Write-Host "New count: $($global:CurrentDataset.Count)" -ForegroundColor Green
