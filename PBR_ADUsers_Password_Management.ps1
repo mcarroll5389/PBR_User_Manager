@@ -349,6 +349,7 @@ function Show-ReportsMenu {
 		Write-Host "5. View/Export All Users with their password change dates"
 		Write-Host "6. View/Export All Users with SamName, LastLogon, PasswordLastSet, PasswordNeverExpires, ChangePasswordAtLogon to CSV"
 		Write-Host "7. Export All Users & All User Data to CSV"
+		Write-Host "8. View/Export All Users with Enabled/Disabled Status"
 		Write-Host "9. Back to Previous Menu"
 		Write-Host "0. Back to Main Menu"
         
@@ -362,6 +363,7 @@ function Show-ReportsMenu {
 			5 { DisplayAndExportLastPasswordChange }
 			6 { ExportAllUsersWithAttributes } 
 			7 { ExportAllUsersFullData }
+			8 { ExportUsersWithEnabledDisabledStatus }
 			9 { return }
 			0 { Show-MainMenu }
 			default {
@@ -1537,6 +1539,104 @@ function ExportAllUsersFullData {
 		Write-Host "Users exported to $ExportPath" -ForegroundColor Green
 		Wait-ForExplicitContinue
 	}
+}
+
+function ExportUsersWithEnabledDisabledStatus {
+	Clear-Host
+	Write-Host "=== View/Export Users by Enabled/Disabled Status ===" -ForegroundColor Cyan
+	Write-Host ""
+	Write-Host "Select which users to view/export:" -ForegroundColor Yellow
+	Write-Host "  1. Enabled Users Only"
+	Write-Host "  2. Disabled Users Only"
+	Write-Host "  3. All Users with Status"
+	Write-Host "  0. Back to Reports Menu"
+	Write-Host ""
+	
+	$filterChoice = Read-Host "Enter your choice (0-3)"
+	
+	switch ($filterChoice) {
+		0 { return }
+		1 {
+			# Enabled users only
+			Clear-Host
+			Write-Host "=== Enabled Users ===" -ForegroundColor Green
+			$users = Get-ADUser -Filter { Enabled -eq $true } -Properties SamAccountName, Enabled
+			if ($users.Count -eq 0) {
+				Write-Host "No enabled users found." -ForegroundColor Yellow
+				Wait-ForExplicitContinue
+				return
+			}
+			Write-Host "Total Enabled Users: $($users.Count)" -ForegroundColor Green
+			Write-Host ""
+			$users | Format-Table -Property @{Name = "SamAccountName"; Expression = { $_.SamAccountName }}, @{Name = "Status"; Expression = { "Enabled" }} -AutoSize
+		}
+		2 {
+			# Disabled users only
+			Clear-Host
+			Write-Host "=== Disabled Users ===" -ForegroundColor Red
+			$users = Get-ADUser -Filter { Enabled -eq $false } -Properties SamAccountName, Enabled
+			if ($users.Count -eq 0) {
+				Write-Host "No disabled users found." -ForegroundColor Yellow
+				Wait-ForExplicitContinue
+				return
+			}
+			Write-Host "Total Disabled Users: $($users.Count)" -ForegroundColor Red
+			Write-Host ""
+			$users | Format-Table -Property @{Name = "SamAccountName"; Expression = { $_.SamAccountName }}, @{Name = "Status"; Expression = { "Disabled" }} -AutoSize
+		}
+		3 {
+			# All users with status
+			Clear-Host
+			Write-Host "=== All Users with Status ===" -ForegroundColor Cyan
+			$users = Get-ADUser -Filter * -Properties SamAccountName, Enabled
+			if ($users.Count -eq 0) {
+				Write-Host "No users found." -ForegroundColor Yellow
+				Wait-ForExplicitContinue
+				return
+			}
+			
+			# Calculate counts in a single pass using Group-Object
+			$groupedUsers = $users | Group-Object -Property Enabled
+			$enabledCount = ($groupedUsers | Where-Object { $_.Name -eq 'True' }).Count
+			if ($null -eq $enabledCount) { $enabledCount = 0 }
+			$disabledCount = ($groupedUsers | Where-Object { $_.Name -eq 'False' }).Count
+			if ($null -eq $disabledCount) { $disabledCount = 0 }
+			
+			Write-Host "Total Users: $($users.Count)" -ForegroundColor Cyan
+			Write-Host "  Enabled: $enabledCount" -ForegroundColor Green
+			Write-Host "  Disabled: $disabledCount" -ForegroundColor Red
+			Write-Host ""
+			
+			# Display users with color-coded status
+			$users | Sort-Object Enabled -Descending | ForEach-Object {
+				$statusText = if ($_.Enabled) { "Enabled" } else { "Disabled" }
+				$statusColor = if ($_.Enabled) { "Green" } else { "Red" }
+				Write-Host ("{0,-30}" -f $_.SamAccountName) -NoNewline
+				Write-Host " [$statusText]" -ForegroundColor $statusColor
+			}
+			Write-Host ""
+		}
+		default {
+			Write-Host "Invalid option. Returning to Reports Menu." -ForegroundColor Red
+			Wait-WithDelay
+			return
+		}
+	}
+	
+	# Export option
+	$ViewUserExport = Read-Host "Press 1 to export this list to CSV, or Enter to continue"
+	if ($ViewUserExport -eq "1") {
+		$Time = Get-Date -Format "yyyyMMdd-HHmmss"
+		$filterName = switch ($filterChoice) {
+			1 { "EnabledUsers" }
+			2 { "DisabledUsers" }
+			3 { "AllUsersWithStatus" }
+		}
+		$ExportPath = "$PWD\$filterName-$Time.csv"
+		$users | Select-Object SamAccountName, @{Name="Status"; Expression={ if ($_.Enabled) { "Enabled" } else { "Disabled" }}} | Export-Csv -Path $ExportPath -Encoding UTF8 -NoTypeInformation
+		Write-Host "Users exported to $ExportPath" -ForegroundColor Green
+	}
+	Wait-ForExplicitContinue
 }
 
 function ResetkrbtgtPasswordNow {
