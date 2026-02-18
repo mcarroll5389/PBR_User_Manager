@@ -2021,11 +2021,12 @@ function Filter-DatasetByStatus {
 		Write-Host ""
 		Write-Host "1. Show Only Enabled Users"
 		Write-Host "2. Show Only Disabled Users"
-		Write-Host "3. Reset Filter (Show All Users)"
 		Write-Host "0. Cancel"
 		Write-Host ""
+		Write-Host "Note: To reset the filter, reload your dataset from the original source." -ForegroundColor Yellow
+		Write-Host ""
 		
-		$choice = Read-Host "Select an option (0-3)"
+		$choice = Read-Host "Select an option (0-2)"
 		
 		switch ($choice) {
 			"1" {
@@ -2040,7 +2041,9 @@ function Filter-DatasetByStatus {
 				}
 				
 				$global:CurrentDataset = $enabledUsers
-				$global:CurrentDatasetName = "$($global:CurrentDatasetName) [Enabled Only]"
+				# Remove any existing filter suffixes before adding new one
+				$baseName = $global:CurrentDatasetName -replace ' \[(Enabled|Disabled) Only\]$', ''
+				$global:CurrentDatasetName = "$baseName [Enabled Only]"
 				
 				Write-Host "Dataset filtered to enabled users only."
 				Write-Host "New count: $($global:CurrentDataset.Count)" -ForegroundColor Green
@@ -2060,16 +2063,12 @@ function Filter-DatasetByStatus {
 				}
 				
 				$global:CurrentDataset = $disabledUsers
-				$global:CurrentDatasetName = "$($global:CurrentDatasetName) [Disabled Only]"
+				# Remove any existing filter suffixes before adding new one
+				$baseName = $global:CurrentDatasetName -replace ' \[(Enabled|Disabled) Only\]$', ''
+				$global:CurrentDatasetName = "$baseName [Disabled Only]"
 				
 				Write-Host "Dataset filtered to disabled users only."
 				Write-Host "New count: $($global:CurrentDataset.Count)" -ForegroundColor Green
-				Wait-ForExplicitContinue
-				return
-			}
-			
-			"3" {
-				Write-Host "Note: To reset the filter completely, reload your dataset from the original source." -ForegroundColor Yellow
 				Wait-ForExplicitContinue
 				return
 			}
