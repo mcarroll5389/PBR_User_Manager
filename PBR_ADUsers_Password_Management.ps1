@@ -175,6 +175,8 @@ function Show-ManageDatasetMenu {
 		Write-Host "4. View All Dataset Entries (User SAM Names)"
 		Write-Host "5. Export Dataset"
 		Write-Host "6. Clear Dataset"
+		Write-Host "7. Filter Dataset by Status"
+		Write-Host "8. Delete Users from Active Directory"
 		Write-Host "0. Back to Main Menu"
 		$choice = Read-Host "Enter your choice"
         
@@ -185,6 +187,8 @@ function Show-ManageDatasetMenu {
 			4 { Show-LoadedDatasetEntries } # Done
 			5 { ExportDataset } # Done
 			6 { ResetDatasetVariables } # Done
+			7 { Filter-DatasetByStatus } # New
+			8 { Delete-UsersFromAD } # New
 			0 { Show-MainMenu } # Done
 			default { 
 				Write-Host "Invalid option. Please try again."
@@ -318,6 +322,8 @@ function Show-ManageUsersMenu {
 		Write-Host "2. Set User Passwords to Random Strings"
 		Write-Host "3. Set 'PasswordNeverExpires' Flag for Users in Dataset"
 		Write-Host "4. Set 'ChangePasswordAtLogon' Flag for Users in Dataset"
+		Write-Host "5. Enable All Users in Dataset"
+		Write-Host "6. Disable All Users in Dataset"
 		Write-Host "0. Back to Main Menu"
         
 		$choice = Read-Host "Enter your choice"
@@ -327,6 +333,8 @@ function Show-ManageUsersMenu {
 			2 { ResetDatasetUserPasswords_unique }
 			3 { Set-PasswordNeverExpiresFlag }
 			4 { Set-ChangePasswordAtLogonFlag }
+			5 { Enable-AllUsersInDataset }
+			6 { Disable-AllUsersInDataset }
 			0 { Show-MainMenu }
 			default {
 				Write-Host "Invalid option. Please try again."
@@ -1996,6 +2004,279 @@ function Wait-WithDelay {
 	Start-Sleep -Seconds 2
 }
 
+############# New User Management Functions #############
+
+# Filter Dataset by Enabled/Disabled Status
+function Filter-DatasetByStatus {
+	do {
+		Clear-Host
+		Write-Host "=== Filter Dataset by Status ===" -ForegroundColor Cyan
+		Test-DatasetPopulated
+		if ($global:CurrentDataset.Count -eq 0) {
+			return
+		}
+		
+		Write-Host "Current Dataset: $($global:CurrentDatasetName)"
+		Write-Host "Total Users: $($global:CurrentDataset.Count)"
+		Write-Host ""
+		Write-Host "1. Show Only Enabled Users"
+		Write-Host "2. Show Only Disabled Users"
+		Write-Host "3. Reset Filter (Show All Users)"
+		Write-Host "0. Cancel"
+		Write-Host ""
+		
+		$choice = Read-Host "Select an option (0-3)"
+		
+		switch ($choice) {
+			"1" {
+				Clear-Host
+				Write-Host "=== Filtering to Enabled Users Only ===" -ForegroundColor Cyan
+				$enabledUsers = $global:CurrentDataset | Where-Object { $_.Enabled -eq $true }
+				
+				if ($enabledUsers.Count -eq 0) {
+					Write-Host "No enabled users found in current dataset." -ForegroundColor Yellow
+					Wait-ForExplicitContinue
+					return
+				}
+				
+				$global:CurrentDataset = $enabledUsers
+				$global:CurrentDatasetName = "$($global:CurrentDatasetName) [Enabled Only]"
+				
+				Write-Host "Dataset filtered to enabled users only."
+				Write-Host "New count: $($global:CurrentDataset.Count)" -ForegroundColor Green
+				Wait-ForExplicitContinue
+				return
+			}
+			
+			"2" {
+				Clear-Host
+				Write-Host "=== Filtering to Disabled Users Only ===" -ForegroundColor Cyan
+				$disabledUsers = $global:CurrentDataset | Where-Object { $_.Enabled -eq $false }
+				
+				if ($disabledUsers.Count -eq 0) {
+					Write-Host "No disabled users found in current dataset." -ForegroundColor Yellow
+					Wait-ForExplicitContinue
+					return
+				}
+				
+				$global:CurrentDataset = $disabledUsers
+				$global:CurrentDatasetName = "$($global:CurrentDatasetName) [Disabled Only]"
+				
+				Write-Host "Dataset filtered to disabled users only."
+				Write-Host "New count: $($global:CurrentDataset.Count)" -ForegroundColor Green
+				Wait-ForExplicitContinue
+				return
+			}
+			
+			"3" {
+				Write-Host "Note: To reset the filter completely, reload your dataset from the original source." -ForegroundColor Yellow
+				Wait-ForExplicitContinue
+				return
+			}
+			
+			"0" {
+				return
+			}
+			
+			default {
+				Write-Host "Invalid option. Please try again." -ForegroundColor Red
+				Wait-WithDelay
+			}
+		}
+	} while ($true)
+}
+
+# Enable All Users in Dataset
+function Enable-AllUsersInDataset {
+	Clear-Host
+	Write-Host "=== Enable All Users in Dataset ===" -ForegroundColor Cyan
+	Test-DatasetPopulated
+	if ($global:CurrentDataset.Count -eq 0) {
+		return
+	}
+	
+	Write-Host "This will enable all users in the current dataset in Active Directory."
+	Write-Host "Users in dataset: $($global:CurrentDataset.Count)"
+	Write-Host ""
+	
+	$confirmation = Read-Host "Are you sure you want to enable all users? (yes/no)"
+	
+	if ($confirmation -ne "yes") {
+		Write-Host "Operation cancelled." -ForegroundColor Yellow
+		Wait-ForExplicitContinue
+		return
+	}
+	
+	Write-Host ""
+	Write-Host "Processing users..." -ForegroundColor Cyan
+	Write-Host ""
+	
+	$successCount = 0
+	$failureCount = 0
+	$failedUsers = @()
+	
+	foreach ($user in $global:CurrentDataset) {
+		try {
+			Enable-ADAccount -Identity $user.SamAccountName -ErrorAction Stop
+			Write-Host "   Enabled: $($user.SamAccountName)" -ForegroundColor Green
+			$successCount++
+			# Update the local dataset object
+			$user.Enabled = $true
+		} 
+		catch {
+			Write-Host "   Failed to enable $($user.SamAccountName): $($_.Exception.Message)" -ForegroundColor Red
+			$failureCount++
+			$failedUsers += $user.SamAccountName
+		}
+	}
+	
+	Write-Host ""
+	Write-Host "Summary:"
+	Write-Host "  Successful: $successCount" -ForegroundColor Green
+	Write-Host "  Failed: $failureCount" -ForegroundColor Red
+	
+	if ($failureCount -gt 0) {
+		Write-Host ""
+		Write-Host "Failed users:" -ForegroundColor Red
+		$failedUsers | ForEach-Object { Write-Host "    - $_" -ForegroundColor Red }
+	}
+	
+	Wait-ForExplicitContinue
+}
+
+# Disable All Users in Dataset
+function Disable-AllUsersInDataset {
+	Clear-Host
+	Write-Host "=== Disable All Users in Dataset ===" -ForegroundColor Cyan
+	Test-DatasetPopulated
+	if ($global:CurrentDataset.Count -eq 0) {
+		return
+	}
+	
+	Write-Host "WARNING: This will disable all users in the current dataset in Active Directory." -ForegroundColor Red
+	Write-Host "Users in dataset: $($global:CurrentDataset.Count)"
+	Write-Host ""
+	
+	$confirmation = Read-Host "Are you sure you want to disable all users? (yes/no)"
+	
+	if ($confirmation -ne "yes") {
+		Write-Host "Operation cancelled." -ForegroundColor Yellow
+		Wait-ForExplicitContinue
+		return
+	}
+	
+	Write-Host ""
+	Write-Host "Processing users..." -ForegroundColor Cyan
+	Write-Host ""
+	
+	$successCount = 0
+	$failureCount = 0
+	$failedUsers = @()
+	
+	foreach ($user in $global:CurrentDataset) {
+		try {
+			Disable-ADAccount -Identity $user.SamAccountName -ErrorAction Stop
+			Write-Host "   Disabled: $($user.SamAccountName)" -ForegroundColor Green
+			$successCount++
+			# Update the local dataset object
+			$user.Enabled = $false
+		} 
+		catch {
+			Write-Host "   Failed to disable $($user.SamAccountName): $($_.Exception.Message)" -ForegroundColor Red
+			$failureCount++
+			$failedUsers += $user.SamAccountName
+		}
+	}
+	
+	Write-Host ""
+	Write-Host "Summary:"
+	Write-Host "  Successful: $successCount" -ForegroundColor Green
+	Write-Host "  Failed: $failureCount" -ForegroundColor Red
+	
+	if ($failureCount -gt 0) {
+		Write-Host ""
+		Write-Host "Failed users:" -ForegroundColor Red
+		$failedUsers | ForEach-Object { Write-Host "    - $_" -ForegroundColor Red }
+	}
+	
+	Wait-ForExplicitContinue
+}
+
+# Delete Users from Active Directory
+function Delete-UsersFromAD {
+	Clear-Host
+	Write-Host "=== Delete Users from Active Directory ===" -ForegroundColor Red
+	Test-DatasetPopulated
+	if ($global:CurrentDataset.Count -eq 0) {
+		return
+	}
+	
+	Write-Host "WARNING: This will PERMANENTLY DELETE all users in the current dataset from Active Directory!" -ForegroundColor Red
+	Write-Host "THIS ACTION CANNOT BE UNDONE!" -ForegroundColor Red
+	Write-Host ""
+	Write-Host "Users in dataset: $($global:CurrentDataset.Count)"
+	Write-Host ""
+	Write-Host "Users to be deleted:"
+	foreach ($user in $global:CurrentDataset) {
+		$statusText = if ($user.Enabled) { "Active" } else { "Disabled" }
+		Write-Host "  - $($user.SamAccountName) [$statusText]" -ForegroundColor Yellow
+	}
+	Write-Host ""
+	
+	$confirmation1 = Read-Host "Type 'DELETE' to confirm you want to delete these users"
+	
+	if ($confirmation1 -ne "DELETE") {
+		Write-Host "Operation cancelled." -ForegroundColor Yellow
+		Wait-ForExplicitContinue
+		return
+	}
+	
+	$confirmation2 = Read-Host "Type 'CONFIRM' to proceed with deletion"
+	
+	if ($confirmation2 -ne "CONFIRM") {
+		Write-Host "Operation cancelled." -ForegroundColor Yellow
+		Wait-ForExplicitContinue
+		return
+	}
+	
+	Write-Host ""
+	Write-Host "Deleting users from Active Directory..." -ForegroundColor Cyan
+	Write-Host ""
+	
+	$successCount = 0
+	$failureCount = 0
+	$failedUsers = @()
+	
+	foreach ($user in $global:CurrentDataset) {
+		try {
+			Remove-ADUser -Identity $user.SamAccountName -Confirm:$false -ErrorAction Stop
+			Write-Host "   Deleted: $($user.SamAccountName)" -ForegroundColor Green
+			$successCount++
+		} 
+		catch {
+			Write-Host "   Failed to delete $($user.SamAccountName): $($_.Exception.Message)" -ForegroundColor Red
+			$failureCount++
+			$failedUsers += $user.SamAccountName
+		}
+	}
+	
+	Write-Host ""
+	Write-Host "Summary:"
+	Write-Host "  Successfully deleted: $successCount" -ForegroundColor Green
+	Write-Host "  Failed: $failureCount" -ForegroundColor Red
+	
+	if ($failureCount -gt 0) {
+		Write-Host ""
+		Write-Host "Failed users (still exist in AD):" -ForegroundColor Red
+		$failedUsers | ForEach-Object { Write-Host "    - $_" -ForegroundColor Red }
+	}
+	
+	Write-Host ""
+	Write-Host "Clearing dataset..." -ForegroundColor Cyan
+	ResetDatasetVariables
+	
+	Wait-ForExplicitContinue
+}
 
 
 Show-MainMenu
