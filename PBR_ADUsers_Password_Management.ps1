@@ -2671,9 +2671,9 @@ function ApplySelectionToDataset {
 	$global:CurrentDataset += $usersToAdd
 	
 	# Final duplicate check and sort
-	$beforeFinalCheck = $global:CurrentDataset.Count
+	$beforeFinalCheck = @($global:CurrentDataset).Count
 	$global:CurrentDataset = $global:CurrentDataset | Sort-Object -Property SamAccountName -Unique
-	$afterFinalCheck = $global:CurrentDataset.Count
+	$afterFinalCheck = @($global:CurrentDataset).Count
 	$finalDuplicatesRemoved = $beforeFinalCheck - $afterFinalCheck
 	
 	# Display summary
@@ -2687,7 +2687,7 @@ function ApplySelectionToDataset {
 		Write-Host "  Final duplicates removed:  $finalDuplicatesRemoved" -ForegroundColor Yellow
 	}
 	Write-Host ""
-	Write-Host "  Total users in dataset:    $($global:CurrentDataset.Count)" -ForegroundColor Cyan
+	Write-Host "  Total users in dataset:    $(@($global:CurrentDataset).Count)" -ForegroundColor Cyan
 	
 	# Clear temporary variables
 	$global:DisplayAndSelectFilteredItem = $null
