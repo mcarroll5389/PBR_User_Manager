@@ -18,9 +18,10 @@ A comprehensive PowerShell-based Active Directory user management and password r
     - Bulk remove by AD Group membership
     - Bulk remove by Organizational Unit
     - Bulk remove by comma-separated list of names
+    - **Show only enabled users** (filter dataset to enabled users only)
+    - **Show only disabled users** (filter dataset to disabled users only)
   - Merge multiple import sources
   - Duplicate detection and prevention
-  - **Filter dataset by Enabled/Disabled status** (show only enabled, disabled, or all users)
   - **Delete users from Active Directory** (permanent removal with double confirmation and automatic backup export)
 
 ### 🔐 Password Operations
@@ -139,14 +140,14 @@ Back to Main → Manage Users → Disable All Users in Dataset
 #### Enable All Disabled Users in Dataset
 ```
 Main Menu → Manage Dataset → Load Users into Dataset
-Manage Dataset → Filter Dataset by Status → Show Only Disabled Users
+Manage Dataset → Remove Users from Dataset → Show Only Disabled Users
 Back to Main → Manage Users → Enable All Users in Dataset
 ```
 
 #### Delete Inactive Users from Active Directory
 ```
 Main Menu → Manage Dataset → Load Users into Dataset
-Manage Dataset → Filter Dataset by Status → Show Only Disabled Users
+Manage Dataset → Remove Users from Dataset → Show Only Disabled Users
 Manage Dataset → Delete Users from Active Directory (requires double confirmation)
 ```
 
@@ -169,7 +170,8 @@ Schedule krbtgt Password Reset → Enter delay (e.g., 12 hours)
 - **ResetPasswordsForAllUsersInDatasetWithUniquePW** - Individual passwords exported to CSV
 
 ### User Management Functions
-- **Filter-DatasetByStatus** - Filter current dataset to show only enabled or disabled users
+- **Show-OnlyEnabledUsers** - Filter current dataset to show only enabled users
+- **Show-OnlyDisabledUsers** - Filter current dataset to show only disabled users
 - **Enable-AllUsersInDataset** - Enable all user accounts in the current dataset
 - **Disable-AllUsersInDataset** - Disable all user accounts in the current dataset
 - **Delete-UsersFromAD** - Permanently delete users from Active Directory (requires double confirmation, auto-exports all user data to CSV before deletion)
