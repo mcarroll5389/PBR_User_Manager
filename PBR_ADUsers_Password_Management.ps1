@@ -761,6 +761,8 @@ function Show-ManageUsersMenu {
 		Write-Host "4. Set 'ChangePasswordAtLogon' Flag for Users in Dataset"
 		Write-Host "5. Enable All Users in Dataset"
 		Write-Host "6. Disable All Users in Dataset"
+		Write-Host "7. Delete Users from Active Directory"
+		
 		Write-Host "0. Back to Main Menu"
         
 		$choice = Read-Host "Enter your choice"
@@ -772,6 +774,7 @@ function Show-ManageUsersMenu {
 			4 { Set-ChangePasswordAtLogonFlag }
 			5 { Enable-AllUsersInDataset }
 			6 { Disable-AllUsersInDataset }
+			7 { Delete-UsersFromAD } # New
 			0 { Show-MainMenu }
 			default {
 				Write-Host "Invalid option. Please try again."
@@ -793,10 +796,10 @@ function Show-ReportsMenu {
 		Write-Host "4. View/Export All Users whose Passwords were changed today"
 		Write-Host "5. View/Export All Users with their password change dates"
 		Write-Host "6. View/Export All Users with SamName, LastLogon, PasswordLastSet, PasswordNeverExpires, ChangePasswordAtLogon to CSV"
-		Write-Host "7. Export All Users & All User Data to CSV"
+		Write-Host "7. View/Export All Users & All User Data to CSV"
 		Write-Host "8. View/Export All Users with Enabled/Disabled Status"
-		Write-Host "9. Export by Group"
-		Write-Host "10. Back to Previous Menu"
+		Write-Host "9. View/Export All Users by Group"
+		Write-Host "10.Back to Previous Menu"
 		Write-Host "0. Back to Main Menu"
         
 		$choice = Read-Host "Enter your choice"
@@ -2673,9 +2676,9 @@ function ApplySelectionToDataset {
 	$global:CurrentDataset += $usersToAdd
 	
 	# Final duplicate check and sort
-	$beforeFinalCheck = $global:CurrentDataset.Count
+	$beforeFinalCheck = @($global:CurrentDataset).Count
 	$global:CurrentDataset = $global:CurrentDataset | Sort-Object -Property SamAccountName -Unique
-	$afterFinalCheck = $global:CurrentDataset.Count
+	$afterFinalCheck = @($global:CurrentDataset).Count
 	$finalDuplicatesRemoved = $beforeFinalCheck - $afterFinalCheck
 	
 	# Display summary
@@ -2689,7 +2692,7 @@ function ApplySelectionToDataset {
 		Write-Host "  Final duplicates removed:  $finalDuplicatesRemoved" -ForegroundColor Yellow
 	}
 	Write-Host ""
-	Write-Host "  Total users in dataset:    $($global:CurrentDataset.Count)" -ForegroundColor Cyan
+	Write-Host "  Total users in dataset:    $(@($global:CurrentDataset).Count)" -ForegroundColor Cyan
 	
 	# Clear temporary variables
 	$global:DisplayAndSelectFilteredItem = $null
