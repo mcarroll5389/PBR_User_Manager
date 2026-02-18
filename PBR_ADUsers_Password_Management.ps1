@@ -243,8 +243,8 @@ function RemoveUsersFromDatasetMenu {
 		Write-Host "2. Bulk Remove by Group"
 		Write-Host "3. Bulk Remove by OU"
 		Write-Host "4. Bulk Remove by Names (comma-separated)"
-		Write-Host "5. Show Only Enabled Users"
-		Write-Host "6. Show Only Disabled Users"
+		Write-Host "5. Remove All Disabled Users"
+		Write-Host "6. Remove All Enabled Users"
 		Write-Host "0. Return to Previous Menu"
 		Write-Host ""
         
@@ -255,8 +255,8 @@ function RemoveUsersFromDatasetMenu {
 			2 { BulkRemoveByGroup }
 			3 { BulkRemoveByOU }
 			4 { BulkRemoveByNames }
-			5 { Show-OnlyEnabledUsers }
-			6 { Show-OnlyDisabledUsers }
+			5 { RemoveAllDisabledUsers }
+			6 { RemoveAllEnabledUsers }
 			0 { return }
 			default {
 				Write-Host "Invalid option. Please try again." -ForegroundColor Red
@@ -2868,7 +2868,7 @@ function Update-DatasetNameWithFilterSuffix {
 }
 
 # Show Only Enabled Users
-function Show-OnlyEnabledUsers {
+function RemoveAllDisabledUsers {
 	Clear-Host
 	Write-Host "=== Filtering to Enabled Users Only ===" -ForegroundColor Cyan
 	Test-DatasetPopulated
@@ -2893,7 +2893,7 @@ function Show-OnlyEnabledUsers {
 }
 
 # Show Only Disabled Users
-function Show-OnlyDisabledUsers {
+function RemoveAllEnabledUsers {
 	Clear-Host
 	Write-Host "=== Filtering to Disabled Users Only ===" -ForegroundColor Cyan
 	Test-DatasetPopulated
