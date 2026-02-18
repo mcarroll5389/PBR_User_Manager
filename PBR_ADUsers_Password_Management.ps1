@@ -338,6 +338,28 @@ function RemoveSingleUserFromDataset {
 	} while ($true)
 }
 
+# Helper function to remove users from dataset
+function Remove-UsersFromDataset {
+	param(
+		[Parameter(Mandatory=$true)]
+		[array]$UsersToRemove
+	)
+	
+	# Build lookup of users to remove for O(1) performance
+	$removeUsernames = @{}
+	foreach ($user in $UsersToRemove) {
+		$removeUsernames[$user.SamAccountName] = $true
+	}
+	
+	# Filter out the users to remove
+	$global:CurrentDataset = $global:CurrentDataset | Where-Object { -not $removeUsernames.ContainsKey($_.SamAccountName) }
+	
+	# Check if dataset is now empty
+	if ($global:CurrentDataset.Count -eq 0) {
+		$global:CurrentDatasetName = "None"
+	}
+}
+
 function BulkRemoveByGroup {
 	Clear-Host
 	Write-Host "=== Bulk Remove by Group ===" -ForegroundColor Cyan
@@ -356,17 +378,23 @@ function BulkRemoveByGroup {
 	# Build array with user counts from current dataset
 	$groupData = @()
 	Write-Host "Gathering group information, please wait..." -ForegroundColor Yellow
+	Write-Host "(This may take a moment for groups with nested memberships)" -ForegroundColor Gray
+	
+	# Build dataset lookup hashtable for O(1) performance
+	$datasetLookup = @{}
+	foreach ($user in $global:CurrentDataset) {
+		$datasetLookup[$user.SamAccountName] = $user
+	}
 	
 	foreach ($group in $groups) {
 		# Get group members and filter for user objects only
 		$groupMembers = Get-ADGroupMember -Identity $group.DistinguishedName -Recursive | Where-Object { $_.objectClass -eq 'user' }
 		
-		# Count how many of these users are in our dataset
+		# Find matching users in dataset using hashtable lookup
 		$usersInDataset = @()
 		foreach ($member in $groupMembers) {
-			$matchingUser = $global:CurrentDataset | Where-Object { $_.SamAccountName -eq $member.SamAccountName }
-			if ($matchingUser) {
-				$usersInDataset += $matchingUser
+			if ($datasetLookup.ContainsKey($member.SamAccountName)) {
+				$usersInDataset += $datasetLookup[$member.SamAccountName]
 			}
 		}
 		
@@ -446,24 +474,15 @@ function BulkRemoveByGroup {
 	$confirm = Read-Host "Are you sure you want to remove these $($usersToRemove.Count) users from the dataset? (Y/N)"
 	
 	if ($confirm -eq "Y" -or $confirm -eq "y") {
-		# Build lookup of users to remove
-		$removeUsernames = @{}
-		foreach ($user in $usersToRemove) {
-			$removeUsernames[$user.SamAccountName] = $true
-		}
-		
-		# Filter out the users to remove
-		$global:CurrentDataset = $global:CurrentDataset | Where-Object { -not $removeUsernames.ContainsKey($_.SamAccountName) }
+		Remove-UsersFromDataset -UsersToRemove $usersToRemove
 		
 		Write-Host ""
 		Write-Host "$($usersToRemove.Count) users removed from dataset." -ForegroundColor Green
 		Write-Host "Remaining users: $($global:CurrentDataset.Count)" -ForegroundColor Cyan
 		
-		# Check if dataset is now empty
 		if ($global:CurrentDataset.Count -eq 0) {
 			Write-Host ""
 			Write-Host "Dataset is now empty." -ForegroundColor Yellow
-			$global:CurrentDatasetName = "None"
 		}
 		
 		Wait-ForExplicitContinue
@@ -493,16 +512,21 @@ function BulkRemoveByOU {
 	$ouData = @()
 	Write-Host "Gathering OU information, please wait..." -ForegroundColor Yellow
 	
+	# Build dataset lookup hashtable for O(1) performance
+	$datasetLookup = @{}
+	foreach ($user in $global:CurrentDataset) {
+		$datasetLookup[$user.SamAccountName] = $user
+	}
+	
 	foreach ($ou in $ous) {
 		# Get users in this OU (only direct members)
 		$ouUsers = Get-ADUser -Filter * -SearchBase $ou.DistinguishedName -SearchScope OneLevel -Properties SamAccountName, Enabled
 		
-		# Count how many of these users are in our dataset
+		# Find matching users in dataset using hashtable lookup
 		$usersInDataset = @()
 		foreach ($ouUser in $ouUsers) {
-			$matchingUser = $global:CurrentDataset | Where-Object { $_.SamAccountName -eq $ouUser.SamAccountName }
-			if ($matchingUser) {
-				$usersInDataset += $matchingUser
+			if ($datasetLookup.ContainsKey($ouUser.SamAccountName)) {
+				$usersInDataset += $datasetLookup[$ouUser.SamAccountName]
 			}
 		}
 		
@@ -583,24 +607,15 @@ function BulkRemoveByOU {
 	$confirm = Read-Host "Are you sure you want to remove these $($usersToRemove.Count) users from the dataset? (Y/N)"
 	
 	if ($confirm -eq "Y" -or $confirm -eq "y") {
-		# Build lookup of users to remove
-		$removeUsernames = @{}
-		foreach ($user in $usersToRemove) {
-			$removeUsernames[$user.SamAccountName] = $true
-		}
-		
-		# Filter out the users to remove
-		$global:CurrentDataset = $global:CurrentDataset | Where-Object { -not $removeUsernames.ContainsKey($_.SamAccountName) }
+		Remove-UsersFromDataset -UsersToRemove $usersToRemove
 		
 		Write-Host ""
 		Write-Host "$($usersToRemove.Count) users removed from dataset." -ForegroundColor Green
 		Write-Host "Remaining users: $($global:CurrentDataset.Count)" -ForegroundColor Cyan
 		
-		# Check if dataset is now empty
 		if ($global:CurrentDataset.Count -eq 0) {
 			Write-Host ""
 			Write-Host "Dataset is now empty." -ForegroundColor Yellow
-			$global:CurrentDatasetName = "None"
 		}
 		
 		Wait-ForExplicitContinue
@@ -650,14 +665,19 @@ function BulkRemoveByNames {
 		return
 	}
 	
+	# Build dataset lookup hashtable for O(1) performance
+	$datasetLookup = @{}
+	foreach ($user in $global:CurrentDataset) {
+		$datasetLookup[$user.SamAccountName] = $user
+	}
+	
 	# Find users in dataset that match the provided names
 	$usersToRemove = @()
 	$notFoundUsers = @()
 	
 	foreach ($username in $allUsernames) {
-		$matchingUser = $global:CurrentDataset | Where-Object { $_.SamAccountName -eq $username }
-		if ($matchingUser) {
-			$usersToRemove += $matchingUser
+		if ($datasetLookup.ContainsKey($username)) {
+			$usersToRemove += $datasetLookup[$username]
 		}
 		else {
 			$notFoundUsers += $username
@@ -704,24 +724,15 @@ function BulkRemoveByNames {
 	$confirm = Read-Host "Are you sure you want to remove these $($usersToRemove.Count) users from the dataset? (Y/N)"
 	
 	if ($confirm -eq "Y" -or $confirm -eq "y") {
-		# Build lookup of users to remove
-		$removeUsernames = @{}
-		foreach ($user in $usersToRemove) {
-			$removeUsernames[$user.SamAccountName] = $true
-		}
-		
-		# Filter out the users to remove
-		$global:CurrentDataset = $global:CurrentDataset | Where-Object { -not $removeUsernames.ContainsKey($_.SamAccountName) }
+		Remove-UsersFromDataset -UsersToRemove $usersToRemove
 		
 		Write-Host ""
 		Write-Host "$($usersToRemove.Count) users removed from dataset." -ForegroundColor Green
 		Write-Host "Remaining users: $($global:CurrentDataset.Count)" -ForegroundColor Cyan
 		
-		# Check if dataset is now empty
 		if ($global:CurrentDataset.Count -eq 0) {
 			Write-Host ""
 			Write-Host "Dataset is now empty." -ForegroundColor Yellow
-			$global:CurrentDatasetName = "None"
 		}
 		
 		Wait-ForExplicitContinue
