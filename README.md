@@ -17,7 +17,7 @@ A comprehensive PowerShell-based Active Directory user management and password r
   - Merge multiple import sources
   - Duplicate detection and prevention
   - **Filter dataset by Enabled/Disabled status** (show only enabled, disabled, or all users)
-  - **Delete users from Active Directory** (permanent removal with double confirmation)
+  - **Delete users from Active Directory** (permanent removal with double confirmation and automatic backup export)
 
 ### 🔐 Password Operations
 - **Reset passwords for all users in dataset**
@@ -150,7 +150,7 @@ Schedule krbtgt Password Reset → Enter delay (e.g., 12 hours)
 - **Filter-DatasetByStatus** - Filter current dataset to show only enabled or disabled users
 - **Enable-AllUsersInDataset** - Enable all user accounts in the current dataset
 - **Disable-AllUsersInDataset** - Disable all user accounts in the current dataset
-- **Delete-UsersFromAD** - Permanently delete users from Active Directory (requires double confirmation)
+- **Delete-UsersFromAD** - Permanently delete users from Active Directory (requires double confirmation, auto-exports all user data to CSV before deletion)
 
 ### Reporting Functions
 - **ExportUsersWithPasswordNeverExpires** - Find accounts with non-expiring passwords
@@ -229,6 +229,7 @@ The script creates log files for:
 - krbtgt password resets: `[timestamp]_[computername]_Reset-KrbTgt-Password.log`
 - Password exports: `DatasetExport-[timestamp].csv`
 - Report exports: Various CSV files with timestamps
+- **Deleted users backup**: `DeletedUsers-[timestamp].csv` (automatically created before deletion with all user properties)
 
 All logs are saved to the script directory.
 
