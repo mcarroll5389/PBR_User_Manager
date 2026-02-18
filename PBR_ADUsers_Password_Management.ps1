@@ -1371,9 +1371,9 @@ function ImportByFile {
 		$validUsers = @()
 		foreach ($user in $usersWithoutDuplicates) {
 			try {
-				$adUser = Get-ADUser -Identity $user.SamAccountName -ErrorAction Stop
-				Write-Host "   $($user.SamAccountName)" -ForegroundColor Green
-				$validUsers += [PSCustomObject]@{SamAccountName = $user.SamAccountName }
+				$adUser = Get-ADUser -Identity $user.SamAccountName -Properties SamAccountName, Enabled -ErrorAction Stop
+				Write-Host "   $($adUser.SamAccountName)" -ForegroundColor Green
+				$validUsers += $adUser
 			}
 			catch {
 				Write-Host "   $($user.SamAccountName)" -ForegroundColor Red
