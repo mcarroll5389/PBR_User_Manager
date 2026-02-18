@@ -2239,6 +2239,32 @@ function Delete-UsersFromAD {
 	}
 	
 	Write-Host ""
+	Write-Host "Exporting user data before deletion..." -ForegroundColor Cyan
+	
+	# Export all user data to CSV before deletion
+	$Time = Get-Date -Format "yyyyMMdd-HHmmss"
+	$ExportPath = "$PWD\DeletedUsers-$Time.csv"
+	
+	$usersToExport = @()
+	foreach ($user in $global:CurrentDataset) {
+		try {
+			$fullUserData = Get-ADUser -Identity $user.SamAccountName -Properties * -ErrorAction Stop
+			$usersToExport += $fullUserData
+		}
+		catch {
+			Write-Host "   Warning: Could not retrieve full data for $($user.SamAccountName): $($_.Exception.Message)" -ForegroundColor Yellow
+		}
+	}
+	
+	if ($usersToExport.Count -gt 0) {
+		$usersToExport | Export-Csv -Path $ExportPath -Encoding UTF8 -NoTypeInformation
+		Write-Host "User data exported to $ExportPath" -ForegroundColor Green
+	}
+	else {
+		Write-Host "Warning: No user data could be exported." -ForegroundColor Yellow
+	}
+	
+	Write-Host ""
 	Write-Host "Deleting users from Active Directory..." -ForegroundColor Cyan
 	Write-Host ""
 	
