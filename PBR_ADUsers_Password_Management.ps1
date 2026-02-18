@@ -171,24 +171,22 @@ function Show-ManageDatasetMenu {
 		Write-Host "=== Main -> Manage Dataset === Current Dataset Name: $($global:CurrentDatasetName) | Users: $($global:CurrentDataset.Count) ==="
 		Write-Host "1. Load Users into Dataset"
 		Write-Host "2. Remove Users from Dataset"
-		Write-Host "3. View Dataset Summary"
-		Write-Host "4. View All Dataset Entries (User SAM Names)"
-		Write-Host "5. Export Dataset"
-		Write-Host "6. Clear Dataset"
-		Write-Host "7. Filter Dataset by Status"
-		Write-Host "8. Delete Users from Active Directory"
+		Write-Host "3. Filter Dataset by Status"
+		Write-Host "4. View Dataset Summary"
+		Write-Host "5. View All Dataset Entries (User SAM Names)"
+		Write-Host "6. Export Dataset"
+		Write-Host "7. Clear Dataset"
 		Write-Host "0. Back to Main Menu"
 		$choice = Read-Host "Enter your choice"
         
 		switch ($choice) {
 			1 { Show-ImportUserDatasetMenu } # Done
 			2 { RemoveUsersFromDatasetMenu } # Done
-			3 { Show-LoadedDatasetSummary } # Done
-			4 { Show-LoadedDatasetEntries } # Done
-			5 { ExportDataset } # Done
-			6 { ResetDatasetVariables } # Done
-			7 { Filter-DatasetByStatus } # New
-			8 { Delete-UsersFromAD } # New
+			3 { Filter-DatasetByStatus } # New
+			4 { Show-LoadedDatasetSummary } # Done
+			5 { Show-LoadedDatasetEntries } # Done
+			6 { ExportDataset } # Done
+			7 { ResetDatasetVariables } # Done
 			0 { Show-MainMenu } # Done
 			default { 
 				Write-Host "Invalid option. Please try again."
@@ -759,6 +757,8 @@ function Show-ManageUsersMenu {
 		Write-Host "4. Set 'ChangePasswordAtLogon' Flag for Users in Dataset"
 		Write-Host "5. Enable All Users in Dataset"
 		Write-Host "6. Disable All Users in Dataset"
+		Write-Host "7. Delete Users from Active Directory"
+		
 		Write-Host "0. Back to Main Menu"
         
 		$choice = Read-Host "Enter your choice"
@@ -770,6 +770,7 @@ function Show-ManageUsersMenu {
 			4 { Set-ChangePasswordAtLogonFlag }
 			5 { Enable-AllUsersInDataset }
 			6 { Disable-AllUsersInDataset }
+			7 { Delete-UsersFromAD } # New
 			0 { Show-MainMenu }
 			default {
 				Write-Host "Invalid option. Please try again."
@@ -791,10 +792,10 @@ function Show-ReportsMenu {
 		Write-Host "4. View/Export All Users whose Passwords were changed today"
 		Write-Host "5. View/Export All Users with their password change dates"
 		Write-Host "6. View/Export All Users with SamName, LastLogon, PasswordLastSet, PasswordNeverExpires, ChangePasswordAtLogon to CSV"
-		Write-Host "7. Export All Users & All User Data to CSV"
+		Write-Host "7. View/Export All Users & All User Data to CSV"
 		Write-Host "8. View/Export All Users with Enabled/Disabled Status"
-		Write-Host "9. Export by Group"
-		Write-Host "10. Back to Previous Menu"
+		Write-Host "9. View/Export All Users by Group"
+		Write-Host "10.Back to Previous Menu"
 		Write-Host "0. Back to Main Menu"
         
 		$choice = Read-Host "Enter your choice"
